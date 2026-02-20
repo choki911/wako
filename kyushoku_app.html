@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今日の給食なんだろう？ - 桜が丘特別支援学校</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Yu Gothic', 'Hiragino Kaku Gothic ProN', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 30px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        h1 {
+            color: #764ba2;
+            font-size: 2em;
+            margin-bottom: 10px;
+            animation: bounce 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0px); }
+            to { transform: translateY(-10px); }
+        }
+
+        .school-name {
+            color: #667eea;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+
+        .date-display {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .discover-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            padding: 25px 50px;
+            font-size: 1.8em;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(245, 87, 108, 0.4);
+            margin: 20px 0;
+        }
+
+        .discover-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(245, 87, 108, 0.6);
+        }
+
+        .discover-btn:active {
+            transform: translateY(-2px) scale(1.02);
+        }
+
+        .discover-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .menu-display {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            padding: 30px;
+            border-radius: 20px;
+            margin-top: 30px;
+            min-height: 200px;
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .menu-display.show {
+            display: block;
+        }
+
+        .menu-title {
+            color: #764ba2;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .menu-item {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            font-size: 1.2em;
+            color: #333;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .menu-icon {
+            font-size: 2em;
+            margin: 10px 0;
+        }
+
+        .no-menu {
+            color: #666;
+            font-size: 1.1em;
+            padding: 20px;
+        }
+
+        .loading {
+            color: #764ba2;
+            font-size: 1.2em;
+            margin: 20px 0;
+        }
+
+        .milk-notice {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #1976d2;
+        }
+
+        .footer {
+            margin-top: 30px;
+            color: #999;
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍴 今日の給食なんだろう？ 🍴</h1>
+        <p class="school-name">千葉県立桜が丘特別支援学校</p>
+        
+        <div class="date-display" id="dateDisplay">
+            📅 今日の日付を取得中...
+        </div>
+
+        <button class="discover-btn" id="discoverBtn" onclick="discoverMenu()">
+            給食を発表！
+        </button>
+
+        <div class="menu-display" id="menuDisplay">
+            <div class="menu-icon">🎉</div>
+            <div class="menu-title">今日の給食</div>
+            <div id="menuContent"></div>
+        </div>
+
+        <div class="footer">
+            令和7年度 2月給食献立表
+        </div>
+    </div>
+
+    <script>
+        // 2026年2月の給食献立データ
+        const menuData = {
+            3: {
+                menu: ['ごはん', 'いわしの梅煮', '甘辛大豆', '千草和え', 'いわしだんご汁', 'ぽんかん'],
+                hasMilk: true
+            },
+            4: {
+                menu: ['コーンピラフ', 'ケイジャンチキン', '野菜添え', 'ミネストローネ', 'プリン'],
+                hasMilk: true
+            },
+            5: {
+                menu: ['ごはん', '春巻', 'おひたし', 'キムチスープ', 'コーヒーミルクゼリー'],
+                hasMilk: true
+            },
+            6: {
+                menu: ['ごはん', '鶏肉と高野豆腐の煮物', '野菜炒め', 'スープ', 'りんご'],
+                hasMilk: true
+            },
+            9: {
+                menu: ['ごはん', '中華風ひき肉と野菜焼きご飯', '大根の煮物', 'スープ', 'りんご'],
+                hasMilk: true
+            },
+            10: {
+                menu: ['ごはん', '豚肉と春雨の中華風炒め', '野菜きりサラダ', 'スープ', 'ぽんかん'],
+                hasMilk: true
+            },
+            12: {
+                menu: ['ごはん', 'ほたて風味カツ', '蒸し大根', 'かぼちゃのミルク煮', '炊き込みご飯', 'おつゆ', 'チョコレートプリン'],
+                hasMilk: true
+            },
+            13: {
+                menu: ['ごはん', '大豆のしょうが炒め', 'サラダ', 'おつゆ', 'りんご'],
+                hasMilk: true
+            },
+            16: {
+                menu: ['ごはん', 'コロッケ', '蒸しキャベツ', 'がんもの煮物', '味噌汁', 'オレンジ'],
+                hasMilk: true
+            },
+            18: {
+                menu: ['食パン', '杏ジャム', 'マカロニグラタン', 'ごぼうのサラダ', 'スープ', 'ワインゼリー'],
+                hasMilk: true
+            },
+            19: {
+                menu: ['ごはん', '鶏の西京焼', '卵とじゃが芋', 'サラダ', '味噌汁'],
+                hasMilk: true
+            },
+            20: {
+                menu: ['ごはん', 'ハムカツ', '蒸し春雨入りサラダ', 'おつゆ', 'リンゴゼリー'],
+                hasMilk: true
+            },
+            24: {
+                menu: ['ごはん', 'ハム入卵焼', '野菜添え', 'サラダ', '豚汁', 'りんご'],
+                hasMilk: true
+            },
+            25: {
+                menu: ['食パン', 'レーズンクリーム', '鱈のホイル焼', 'じゃが芋のソテー', '野菜炒め', '豆腐のスープ', 'オレンジ'],
+                hasMilk: true
+            },
+            26: {
+                menu: ['チャーハン', 'あんかけカップ焼売', '野菜炒め', 'スープ', 'ミックスベリーゼリー'],
+                hasMilk: true
+            },
+            27: {
+                menu: ['【日本の郷土料理 新潟】ごはん', '鮭の焼き漬け', '車麩の揚げ煮', 'のっぺ', '鶏汁', 'いももち'],
+                hasMilk: true
+            }
+        };
+
+        // 日付を表示
+        function displayDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth() + 1;
+            const day = today.getDate();
+            const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+            const weekday = weekdays[today.getDay()];
+            
+            document.getElementById('dateDisplay').innerHTML = 
+                `📅 ${year}年${month}月${day}日（${weekday}）`;
+        }
+
+        // 給食を発表
+        async function discoverMenu() {
+            const btn = document.getElementById('discoverBtn');
+            const menuDisplay = document.getElementById('menuDisplay');
+            const menuContent = document.getElementById('menuContent');
+            
+            btn.disabled = true;
+            menuDisplay.classList.remove('show');
+            
+            // ドラムロール音声
+            speakText('今日の給食は何でしょうか？');
+            
+            setTimeout(() => {
+                const today = new Date();
+                const day = today.getDate();
+                const month = today.getMonth() + 1;
+                
+                // 2月のメニューをチェック
+                if (month === 2 && menuData[day]) {
+                    const todayMenu = menuData[day];
+                    let menuHTML = '';
+                    
+                    todayMenu.menu.forEach((item, index) => {
+                        menuHTML += `<div class="menu-item">${item}</div>`;
+                    });
+                    
+                    if (todayMenu.hasMilk) {
+                        menuHTML += '<div class="milk-notice">🥛 牛乳もあります</div>';
+                    }
+                    
+                    menuContent.innerHTML = menuHTML;
+                    
+                    // 音声で発表
+                    const menuText = '今日の給食は、' + todayMenu.menu.join('、') + 
+                                   (todayMenu.hasMilk ? '、そして牛乳です。' : 'です。') +
+                                   '今日も作ってくれた人たちに感謝して美味しくいただきましょう。！';
+                    speakText(menuText);
+                    
+                } else {
+                    menuContent.innerHTML = '<div class="no-menu">今日は給食がない日です<br>または献立データがありません</div>';
+                    speakText('今日は給食がない日です');
+                }
+                
+                menuDisplay.classList.add('show');
+                btn.disabled = false;
+            }, 2000);
+        }
+
+        // 音声読み上げ機能
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                // 既存の音声を停止
+                window.speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ja-JP';
+                utterance.rate = 0.9; // 少しゆっくり
+                utterance.pitch = 1.1; // 少し高めの声
+                utterance.volume = 1.0;
+                
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // ページ読み込み時に日付を表示
+        window.addEventListener('DOMContentLoaded', () => {
+            displayDate();
+        });
+    </script>
+</body>
+</html>
