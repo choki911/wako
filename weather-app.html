@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>朝の天気 – 加曽利町</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@400;700&family=Zen+Maru+Gothic:wght@400;700&display=swap');
+
+  :root {
+    --sky-morning: #ffd89b;
+    --sky-top: #ffb347;
+    --cloud: #fff9f0;
+    --text-dark: #3a2a1a;
+    --text-mid: #6b4c2a;
+    --accent: #ff7c43;
+    --btn: #ff6b35;
+    --btn-hover: #e85d2c;
+    --card-bg: rgba(255,255,255,0.72);
+    --shadow: 0 8px 40px rgba(200,120,50,0.18);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: linear-gradient(170deg, #ffe0a0 0%, #ffb347 40%, #ff8c42 75%, #e8663a 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* 背景雲 */
+  .cloud-bg {
+    position: fixed;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    filter: blur(40px);
+    pointer-events: none;
+  }
+  .c1 { width: 420px; height: 160px; top: 5%; left: -80px; }
+  .c2 { width: 300px; height: 120px; top: 12%; right: 40px; }
+  .c3 { width: 500px; height: 140px; bottom: 15%; left: -60px; }
+
+  /* メインカード */
+  .card {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 32px;
+    padding: 40px 48px 44px;
+    max-width: 480px;
+    width: 92vw;
+    box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.8);
+    border: 1.5px solid rgba(255,255,255,0.5);
+    text-align: center;
+    position: relative;
+    z-index: 10;
+  }
+
+  .location {
+    font-family: 'Kaisei Decol', serif;
+    font-size: 1rem;
+    color: var(--text-mid);
+    letter-spacing: 0.12em;
+    margin-bottom: 4px;
+  }
+
+  .date-display {
+    font-family: 'Kaisei Decol', serif;
+    font-size: 1.7rem;
+    color: var(--text-dark);
+    font-weight: 700;
+    margin-bottom: 28px;
+  }
+
+  /* 天気イラスト */
+  .weather-art {
+    font-size: 120px;
+    line-height: 1;
+    margin: 0 auto 16px;
+    filter: drop-shadow(0 6px 18px rgba(200,100,30,0.25));
+    animation: floatArt 4s ease-in-out infinite;
+    display: block;
+    transition: transform 0.3s;
+  }
+  @keyframes floatArt {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .weather-label {
+    font-family: 'Kaisei Decol', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 4px;
+  }
+
+  .weather-desc {
+    font-size: 0.95rem;
+    color: var(--text-mid);
+    min-height: 2.2rem;
+    line-height: 1.6;
+    margin-bottom: 22px;
+  }
+
+  /* 気温・湿度 */
+  .stats {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    background: rgba(255,180,80,0.2);
+    border-radius: 16px;
+    padding: 12px 22px;
+    min-width: 110px;
+  }
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--text-mid);
+    margin-bottom: 3px;
+  }
+  .stat-value {
+    font-family: 'Kaisei Decol', serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-dark);
+  }
+
+  /* ボタン */
+  .btn {
+    background: linear-gradient(135deg, var(--btn), #ff9a3c);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 18px 44px;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 24px rgba(255,107,53,0.45);
+    transition: transform 0.15s, box-shadow 0.15s, background 0.2s;
+    letter-spacing: 0.08em;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn:hover {
+    background: linear-gradient(135deg, var(--btn-hover), #ff7e20);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 32px rgba(255,107,53,0.55);
+  }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  /* ローディング */
+  .loading {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 5px solid rgba(255,150,50,0.25);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .weather-content { display: none; }
+
+  .error-msg {
+    display: none;
+    color: #c0392b;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+    padding: 10px 16px;
+    background: rgba(255,100,100,0.12);
+    border-radius: 12px;
+  }
+
+  /* 音声ボタン */
+  .speak-btn {
+    background: none;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 10px 28px;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 0.95rem;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: background 0.2s, color 0.2s;
+    display: none;
+  }
+  .speak-btn:hover { background: var(--accent); color: #fff; }
+
+  footer {
+    margin-top: 20px;
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.65);
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<div class="cloud-bg c1"></div>
+<div class="cloud-bg c2"></div>
+<div class="cloud-bg c3"></div>
+
+<div class="card">
+  <div class="location">📍 千葉市若葉区 加曽利町</div>
+  <div class="date-display" id="dateDisplay">—</div>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div style="color:var(--text-mid);font-size:0.9rem;">お天気を調べています…</div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="weather-content" id="weatherContent">
+    <div class="weather-art" id="weatherArt">☀️</div>
+    <div class="weather-label" id="weatherLabel">—</div>
+    <div class="weather-desc" id="weatherDesc"></div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">🌡 最高気温</div>
+        <div class="stat-value" id="tempMax">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">🌡 最低気温</div>
+        <div class="stat-value" id="tempMin">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">💧 降水確率</div>
+        <div class="stat-value" id="precip">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">💨 風速</div>
+        <div class="stat-value" id="wind">—</div>
+      </div>
+    </div>
+    <button class="speak-btn" id="speakBtn" onclick="speakWeather()">🔊 もう一度聞く</button>
+  </div>
+
+  <button class="btn" id="fetchBtn" onclick="fetchWeather()">🌤 今日のお天気を調べる</button>
+</div>
+
+<footer>データ提供: Open-Meteo (無料) &nbsp;|&nbsp; コスト ¥0</footer>
+
+<script>
+  // 今日の日付表示
+  const today = new Date();
+  const weekDays = ['日','月','火','水','木','金','土'];
+  document.getElementById('dateDisplay').textContent =
+    `${today.getMonth()+1}月${today.getDate()}日（${weekDays[today.getDay()]}）`;
+
+  // WMO天気コード → 日本語・絵文字
+  function getWeatherInfo(code) {
+    const map = {
+      0:  { emoji:'☀️',  label:'快晴',     desc:'雲ひとつない青空です。日差しが強くなりそうですね！'},
+      1:  { emoji:'🌤️',  label:'ほぼ晴れ', desc:'ほとんど晴れています。気持ちのいい一日になりそうです。'},
+      2:  { emoji:'⛅',  label:'晴れ時々曇り', desc:'晴れと曇りが交互にやってきます。上着があると安心かも。'},
+      3:  { emoji:'☁️',  label:'曇り',     desc:'雲が空を覆っています。少し肌寒いかもしれません。'},
+      45: { emoji:'🌫️',  label:'霧',       desc:'霧が出ています。見通しに注意して外出しましょう。'},
+      48: { emoji:'🌫️',  label:'霧氷',     desc:'霧氷が発生しています。足元に気を付けてください。'},
+      51: { emoji:'🌦️',  label:'霧雨（弱）', desc:'細かい霧雨が降っています。折り畳み傘があると便利です。'},
+      53: { emoji:'🌦️',  label:'霧雨',     desc:'霧雨が降っています。傘を持ってでかけましょう。'},
+      55: { emoji:'🌧️',  label:'霧雨（強）', desc:'やや強い霧雨です。しっかりした傘を用意しましょう。'},
+      61: { emoji:'🌧️',  label:'小雨',     desc:'小雨が降っています。傘をお忘れなく！'},
+      63: { emoji:'🌧️',  label:'雨',       desc:'雨が降っています。しっかり雨具を準備してください。'},
+      65: { emoji:'🌧️',  label:'大雨',     desc:'強い雨が降っています。外出時は十分に気を付けましょう。'},
+      71: { emoji:'🌨️',  label:'小雪',     desc:'小雪が降っています。路面が滑りやすくなるかも。'},
+      73: { emoji:'❄️',  label:'雪',       desc:'雪が降っています。防寒と足元に気を付けてください。'},
+      75: { emoji:'❄️',  label:'大雪',     desc:'大雪です！交通情報を確認してから外出しましょう。'},
+      77: { emoji:'🌨️',  label:'霧雪',     desc:'霧雪が降っています。滑りやすいので注意しましょう。'},
+      80: { emoji:'🌦️',  label:'にわか雨（弱）', desc:'にわか雨が降っています。折り畳み傘があると安心です。'},
+      81: { emoji:'🌦️',  label:'にわか雨', desc:'にわか雨が降っています。傘の準備を忘れずに！'},
+      82: { emoji:'⛈️',  label:'激しいにわか雨', desc:'激しいにわか雨です。できるだけ屋内で過ごしましょう。'},
+      85: { emoji:'🌨️',  label:'にわか雪', desc:'にわか雪が降っています。路面に注意してください。'},
+      86: { emoji:'🌨️',  label:'激しいにわか雪', desc:'激しいにわか雪です。外出を控えることをおすすめします。'},
+      95: { emoji:'⛈️',  label:'雷雨',     desc:'雷雨が発生しています。高い場所や木の下は避けてください。'},
+      96: { emoji:'⛈️',  label:'雷雨（雹あり）', desc:'雹を伴う雷雨です。屋内でお過ごしください。'},
+      99: { emoji:'⛈️',  label:'激しい雷雨', desc:'激しい雷雨です。絶対に外出を控えてください。'},
+    };
+    return map[code] || { emoji:'🌈', label:'不明', desc:'天気情報を取得できませんでした。' };
+  }
+
+  let currentSpeechText = '';
+
+  function speakWeather() {
+    if (!currentSpeechText) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(currentSpeechText);
+    utter.lang = 'ja-JP';
+    utter.rate = 0.95;
+    utter.pitch = 1.1;
+    window.speechSynthesis.speak(utter);
+  }
+
+  async function fetchWeather() {
+    const btn = document.getElementById('fetchBtn');
+    const loading = document.getElementById('loading');
+    const content = document.getElementById('weatherContent');
+    const errorMsg = document.getElementById('errorMsg');
+    const speakBtn = document.getElementById('speakBtn');
+
+    btn.disabled = true;
+    errorMsg.style.display = 'none';
+    content.style.display = 'none';
+    speakBtn.style.display = 'none';
+    loading.style.display = 'flex';
+
+    try {
+      // Open-Meteo API (完全無料・APIキー不要)
+      const lat = 35.6285;
+      const lon = 140.1512;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max&timezone=Asia%2FTokyo&forecast_days=1`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('ネットワークエラー');
+      const data = await res.json();
+
+      const d = data.daily;
+      const code = d.weathercode[0];
+      const tMax = Math.round(d.temperature_2m_max[0]);
+      const tMin = Math.round(d.temperature_2m_min[0]);
+      const precip = d.precipitation_probability_max[0];
+      const windspeed = Math.round(d.windspeed_10m_max[0]);
+
+      const info = getWeatherInfo(code);
+
+      document.getElementById('weatherArt').textContent = info.emoji;
+      document.getElementById('weatherLabel').textContent = info.label;
+      document.getElementById('weatherDesc').textContent = info.desc;
+      document.getElementById('tempMax').textContent = `${tMax}°C`;
+      document.getElementById('tempMin').textContent = `${tMin}°C`;
+      document.getElementById('precip').textContent = `${precip}%`;
+      document.getElementById('wind').textContent = `${windspeed}m/s`;
+
+      // 音声テキスト
+      const dateStr = `${today.getMonth()+1}月${today.getDate()}日`;
+      currentSpeechText = `${dateStr}の加曽利町のお天気です。きょうは${info.label}でしょう。${info.desc} 最高気温は${tMax}度、最低気温は${tMin}度です。降水確率は${precip}パーセント。風速は最大${windspeed}メートル毎秒です。`;
+
+      loading.style.display = 'none';
+      content.style.display = 'block';
+      speakBtn.style.display = 'inline-block';
+      btn.textContent = '🔄 更新する';
+      btn.disabled = false;
+
+      // 自動読み上げ
+      speakWeather();
+
+    } catch(e) {
+      loading.style.display = 'none';
+      errorMsg.textContent = '⚠️ 天気の取得に失敗しました。ネットワーク接続を確認してください。';
+      errorMsg.style.display = 'block';
+      btn.disabled = false;
+    }
+  }
+
+  // 背景グラデーションを時刻で調整
+  (function() {
+    const h = new Date().getHours();
+    let bg;
+    if (h < 6)       bg = 'linear-gradient(170deg,#1a1a4e 0%,#2d2d8a 50%,#1a3a6e 100%)';
+    else if (h < 9)  bg = 'linear-gradient(170deg,#ffe0a0 0%,#ffb347 40%,#ff8c42 75%,#e8663a 100%)';
+    else if (h < 17) bg = 'linear-gradient(170deg,#87ceeb 0%,#5bb8f5 40%,#2196f3 100%)';
+    else if (h < 19) bg = 'linear-gradient(170deg,#ffe0a0 0%,#ffb347 40%,#ff8c42 75%,#e8663a 100%)';
+    else             bg = 'linear-gradient(170deg,#1a1a4e 0%,#2d2d8a 50%,#1a3a6e 100%)';
+    document.body.style.background = bg;
+  })();
+</script>
+</body>
+</html>
