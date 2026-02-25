@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>呼名アプリ</title>
+    <style>
+        /* 画面中央に配置 */
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #e8f5e9; /* 優しい薄緑色の背景 */
+            font-family: 'Helvetica Neue', Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+        }
+
+        /* 呼名ボタンのデザイン */
+        .yobina-button {
+            padding: 40px 80px;
+            font-size: 48px;
+            font-weight: bold;
+            color: white;
+            background-color: #2ecc71; /* 安心感のあるグリーン */
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 10px 0 #27ae60;
+            transition: all 0.1s;
+        }
+
+        /* ボタンを押した時のエフェクト */
+        .yobina-button:active {
+            transform: translateY(5px);
+            box-shadow: 0 5px 0 #27ae60;
+        }
+
+        /* ヒント表示 */
+        .hint {
+            position: absolute;
+            bottom: 20px;
+            color: #4caf50;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+    <button id="yobinaButton" class="yobina-button">📢 呼名</button>
+
+    <div class="hint">「P」キーを押しても音が流れるよ！</div>
+
+    <audio id="yobinaMusic" src="呼名.mp3"></audio>
+
+    <script>
+        const music = document.getElementById('yobinaMusic');
+        const button = document.getElementById('yobinaButton');
+
+        // 再生関数
+        function playYobina() {
+            music.currentTime = 0; // 連続で押しても最初から流れるようにする
+            music.play().catch(error => {
+                console.error("再生エラー:", error);
+                alert("「呼名.mp3」が見つからないか、ブラウザが再生をブロックしました。画面を一度クリックしてから試してください。");
+            });
+        }
+
+        // クリックイベント
+        button.addEventListener('click', playYobina);
+
+        // キーボードイベント
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'p' || event.key === 'P') {
+                playYobina();
+            }
+        });
+    </script>
+</body>
+</html>

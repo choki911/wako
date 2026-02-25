@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>朝の会アプリ</title>
+    <style>
+        /* 画面中央に配置するための設定 */
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f8ff; /* 爽やかな水色 */
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        /* ボタンのデザイン */
+        .play-button {
+            padding: 40px 80px;
+            font-size: 48px;
+            font-weight: bold;
+            color: white;
+            background-color: #ff7f50; /* 元気が出るオレンジ色 */
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 10px 0 #d35400;
+            transition: all 0.1s;
+        }
+
+        /* ボタンを押した時の動き */
+        .play-button:active {
+            transform: translateY(5px);
+            box-shadow: 0 5px 0 #d35400;
+        }
+
+        /* キーボード操作の案内 */
+        .hint {
+            position: absolute;
+            bottom: 20px;
+            color: #666;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+    <button id="songButton" class="play-button">☀️ 朝の歌</button>
+
+    <div class="hint">キーボードの「P」キーを押しても流れるよ！</div>
+
+    <audio id="morningMusic" src="music.mp3"></audio>
+
+    <script>
+        const music = document.getElementById('morningMusic');
+        const button = document.getElementById('songButton');
+
+        // 音楽を再生する関数
+        function playMusic() {
+            // 再生中の場合は最初に戻す
+            music.currentTime = 0;
+            music.play().catch(error => {
+                alert("音楽ファイルを読み込めませんでした。music.mp3が同じフォルダにあるか確認してください。");
+            });
+        }
+
+        // ボタンをクリックした時の動作
+        button.addEventListener('click', () => {
+            playMusic();
+        });
+
+        // キーボードを押した時の動作
+        document.addEventListener('keydown', (event) => {
+            // Pキー（大文字小文字両方）が押されたかチェック
+            if (event.key === 'p' || event.key === 'P' || event.key === 'Enter') {
+                playMusic();
+            }
+        });
+    </script>
+</body>
+</html>
