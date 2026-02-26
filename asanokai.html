@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝の会アプリ - 両側インデックス版</title>
+  <style>
+    :root {
+      --bg-color: #f0f4f8;
+      --tab-1: #ffb7b2; /* パステル赤 */
+      --tab-2: #ffdac1; /* パステルオレンジ */
+      --tab-3: #fff9c4; /* パステルイエロー */
+      --tab-4: #e2f0cb; /* パステルグリーン */
+      --tab-5: #b5ead7; /* パステルミント */
+      --tab-6: #c7ceea; /* パステルブルー */
+    }
+
+    body {
+      font-family: 'Yu Gothic', sans-serif;
+      background-color: var(--bg-color);
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* インデックス（タブ）のスタイル */
+    .sidebar {
+      width: 90px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .tab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      font-weight: bold;
+      font-size: 1rem;
+      border: 1px solid rgba(0,0,0,0.05);
+      transition: all 0.3s;
+      opacity: 0.8;
+    }
+    .tab:hover { opacity: 1; width: 100px; }
+    
+    /* 左側タブのアクティブ状態 */
+    .sidebar-left .tab.active {
+      width: 110px;
+      opacity: 1;
+      box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+      z-index: 10;
+      border-right: none;
+      border-radius: 0 15px 15px 0;
+    }
+    /* 右側タブのアクティブ状態 */
+    .sidebar-right .tab.active {
+      width: 110px;
+      opacity: 1;
+      box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+      z-index: 10;
+      border-left: none;
+      border-radius: 15px 0 0 15px;
+    }
+
+    /* メインコンテンツ */
+    .main-container {
+      flex: 1;
+      background: white;
+      margin: 10px;
+      border-radius: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      text-align: center;
+      z-index: 5;
+    }
+
+    .page { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; }
+    .page.active { display: flex; animation: fadeIn 0.3s; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+
+    /* ボタン共通 */
+    .action-btn {
+      padding: 30px 60px;
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: white;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+      transition: transform 0.2s, background 0.3s;
+    }
+    .action-btn:active { transform: scale(0.95); }
+
+    #page1 .action-btn, #page6 .action-btn { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); }
+    #page3 .action-btn { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); font-size: 1.8rem; }
+    
+    .weather-icon { font-size: 80px; margin: 15px; }
+    .date-text { font-size: 2.2rem; margin-bottom: 15px; font-weight: bold; }
+
+    .list-container {
+      width: 90%;
+      max-height: 80%;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      padding: 10px;
+    }
+    .list-item {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 15px;
+      font-size: 1.3rem;
+      cursor: pointer;
+      border: 3px solid transparent;
+    }
+    .list-item.called { background: #d1e7dd; border-color: #a3cfbb; }
+
+    .menu-card {
+      background: #fff5f8;
+      border-radius: 20px;
+      padding: 20px;
+      width: 80%;
+    }
+    .menu-item-text { font-size: 1.5rem; margin: 8px 0; color: #444; text-align: left; padding-left: 20%; }
+    .milk-tag { color: #0d6efd; font-weight: bold; margin-top: 10px; font-size: 1.2rem; }
+  </style>
+</head>
+<body>
+
+  <div class="sidebar sidebar-left">
+    <div class="tab tab-1" style="background-color: var(--tab-1)" onclick="showPage(1)">1.あいさつ</div>
+    <div class="tab tab-2" style="background-color: var(--tab-2)" onclick="showPage(2)">2.呼名</div>
+    <div class="tab tab-3" style="background-color: var(--tab-3)" onclick="showPage(3)">3.日付天気</div>
+    <div class="tab tab-4" style="background-color: var(--tab-4)" onclick="showPage(4)">4.予定</div>
+    <div class="tab tab-5" style="background-color: var(--tab-5)" onclick="showPage(5)">5.給食</div>
+    <div class="tab tab-6" style="background-color: var(--tab-6)" onclick="showPage(6)">6.おわり</div>
+  </div>
+
+  <div class="main-container">
+    
+    <div class="page" id="page1">
+      <button class="action-btn" onclick="playGreetingStart()">あいさつ</button>
+    </div>
+
+    <div class="page" id="page2">
+      <h2>おなまえを よぶよ</h2>
+      <div class="list-container" id="rollCallList"></div>
+    </div>
+
+    <div class="page" id="page3">
+      <div id="dateDisplay" class="date-text"></div>
+      <div id="weatherDisplay" class="weather-icon">☀️</div>
+      <button class="action-btn" onclick="playWeatherInfo()">日付・天気を発表</button>
+      <div style="margin-top:20px;">
+        <select id="weatherSelect" onchange="updateWeatherIcon()" style="font-size:1.2rem; padding: 5px;">
+          <option value="晴れ">☀️ 晴れ</option>
+          <option value="曇り">☁️ 曇り</option>
+          <option value="雨">☔ 雨</option>
+          <option value="雪">❄️ 雪</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="page" id="page4">
+      <h2>きょうのよてい</h2>
+      <div class="list-container" id="scheduleList"></div>
+    </div>
+
+    <div class="page" id="page5">
+      <h2 style="color:#764ba2;">🍴 きょうのきゅうしょく 🍴</h2>
+      <div id="menuDisplay" class="menu-card">
+        <div id="menuContent">給食ボタンを押してね</div>
+      </div>
+      <button class="action-btn" onclick="discoverMenu()" style="margin-top:20px; font-size:1.5rem; padding:20px 40px; background:#f5576c;">給食を発表！</button>
+    </div>
+
+    <div class="page" id="page6">
+      <button class="action-btn" onclick="playGreetingEnd()">あいさつ</button>
+    </div>
+
+  </div>
+
+  <div class="sidebar sidebar-right">
+    <div class="tab tab-1" style="background-color: var(--tab-1)" onclick="showPage(1)">1.あいさつ</div>
+    <div class="tab tab-2" style="background-color: var(--tab-2)" onclick="showPage(2)">2.呼名</div>
+    <div class="tab tab-3" style="background-color: var(--tab-3)" onclick="showPage(3)">3.日付天気</div>
+    <div class="tab tab-4" style="background-color: var(--tab-4)" onclick="showPage(4)">4.予定</div>
+    <div class="tab tab-5" style="background-color: var(--tab-5)" onclick="showPage(5)">5.給食</div>
+    <div class="tab tab-6" style="background-color: var(--tab-6)" onclick="showPage(6)">6.おわり</div>
+  </div>
+
+  <script>
+    // データ設定
+    const students = ["たろう 君", "じろう 君", "さぶろう 君", "はなこ さん", "よしこ さん"];
+    const schedule = [
+      { time: "1時間目", task: "こくご" },
+      { time: "2時間目", task: "さんすう" },
+      { time: "3時間目", task: "たいいく" },
+      { time: "4時間目", task: "おんがく" },
+      { time: "給食", task: "おいしいごはん" },
+      { time: "5時間目", task: "ずこう" }
+    ];
+
+    const menuData = {
+      3:  { menu: ['ごはん', 'いわしの梅煮', '甘辛大豆', '千草和え', 'いわしだんご汁', 'ぽんかん'], hasMilk: true },
+      4:  { menu: ['コーンピラフ', 'ケイジャンチキン', '野菜添え', 'ミネストローネ', 'プリン'], hasMilk: true },
+      5:  { menu: ['ごはん', '春巻', 'おひたし', 'キムチスープ', 'コーヒーミルクゼリー'], hasMilk: true },
+      6:  { menu: ['ごはん', '鶏肉と高野豆腐の煮物', '野菜炒め', 'スープ', 'りんご'], hasMilk: true },
+      9:  { menu: ['ごはん', '中華風ひき肉と野菜焼きご飯', '大根の煮物', 'スープ', 'りんご'], hasMilk: true },
+      10: { menu: ['ごはん', '豚肉と春雨の中華風炒め', '野菜きりサラダ', 'スープ', 'ぽんかん'], hasMilk: true },
+      12: { menu: ['ごはん', 'ほたて風味カツ', '蒸し大根', 'かぼちゃのミルク煮', '炊き込みご飯', 'おつゆ', 'チョコレートプリン'], hasMilk: true },
+      13: { menu: ['ごはん', '大豆のしょうが炒め', 'サラダ', 'おつゆ', 'りんご'], hasMilk: true },
+      16: { menu: ['ごはん', 'コロッケ', '蒸しキャベツ', 'がんもの煮物', '味噌汁', 'オレンジ'], hasMilk: true },
+      18: { menu: ['食パン', '杏ジャム', 'マカロニグラタン', 'ごぼうのサラダ', 'スープ', 'ワインゼリー'], hasMilk: true },
+      19: { menu: ['ごはん', '鶏の西京焼', '卵とじゃが芋', 'サラダ', '味噌汁'], hasMilk: true },
+      20: { menu: ['ごはん', 'ハムカツ', '春雨入りサラダ', 'おつゆ', 'リンゴゼリー'], hasMilk: true },
+      24: { menu: ['ごはん', 'ハムカツ', '蒸し野菜添え', '春雨サラダ', '豚汁', 'りんご'], hasMilk: true },
+      25: { menu: ['食パン', 'レーズンクリーム', '鱈のホイル焼き', '野菜炒め', 'じゃがいものコンソメ煮', '豆腐のスープ', 'オレンジ'], hasMilk: true },
+      26: { menu: ['チャーハン', 'あんかけカップ焼売', '野菜炒め', 'スープ', 'ミックスベリーゼリー'], hasMilk: true },
+      27: { menu: ['ごはん', '鮭の焼き漬け', '車麩の揚げ煮', 'のっぺ', '鶏汁', 'いももち'], hasMilk: true }
+    };
+
+    let currentPage = 1;
+
+    window.onload = () => {
+      renderRollCall();
+      renderSchedule();
+      updateDateInfo();
+      showPage(1);
+    };
+
+    // ページ切り替え（左右のタブを同時に制御）
+    function showPage(num) {
+      currentPage = num;
+      // ページの切り替え
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page' + num).classList.add('active');
+
+      // タブの切り替え（左右両方の該当クラスをactiveにする）
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-' + num).forEach(t => t.classList.add('active'));
+    }
+
+    // pキー操作
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'p' || e.key === 'P') {
+        switch(currentPage) {
+          case 1: playGreetingStart(); break;
+          case 3: playWeatherInfo(); break;
+          case 5: discoverMenu(); break;
+          case 6: playGreetingEnd(); break;
+        }
+      }
+    });
+
+    function playGreetingStart() { speak("これから朝の会を始めます。気をつけ。れい！"); }
+    function playGreetingEnd() { speak("これで朝の会を終わります。気をつけ。れい！"); }
+
+    function renderRollCall() {
+      const container = document.getElementById('rollCallList');
+      students.forEach(name => {
+        const div = document.createElement('div');
+        div.className = 'list-item';
+        div.innerText = name;
+        div.onclick = () => {
+          div.classList.toggle('called');
+          speak(name + "さん、おはようございます");
+        };
+        container.appendChild(div);
+      });
+    }
+
+    function updateDateInfo() {
+      const now = new Date();
+      const days = ['日', '月', '火', '水', '木', '金', '土'];
+      document.getElementById('dateDisplay').innerText = `${now.getMonth() + 1}月${now.getDate()}日 (${days[now.getDay()]}曜日)`;
+    }
+
+    function updateWeatherIcon() {
+      const val = document.getElementById('weatherSelect').value;
+      const icons = { '晴れ': '☀️', '曇り': '☁️', '雨': '☔', '雪': '❄️' };
+      document.getElementById('weatherDisplay').innerText = icons[val];
+    }
+
+    function playWeatherInfo() {
+      const dateText = document.getElementById('dateDisplay').innerText;
+      const weather = document.getElementById('weatherSelect').value;
+      speak(`今日は${dateText}です。天気は${weather}です。`);
+    }
+
+    function renderSchedule() {
+      const container = document.getElementById('scheduleList');
+      schedule.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'list-item';
+        div.innerHTML = `<strong>${item.time}</strong><br>${item.task}`;
+        div.onclick = () => speak(`${item.time}は、${item.task}です。`);
+        container.appendChild(div);
+      });
+    }
+
+    function discoverMenu() {
+      const now = new Date();
+      const day = now.getDate();
+      const content = document.getElementById('menuContent');
+      const data = menuData[day];
+      if (!data) {
+        content.innerHTML = "今日のメニューはお休みです。";
+        speak("今日の給食はお休みです。");
+        return;
+      }
+      let html = '';
+      data.menu.forEach(item => html += `<div class="menu-item-text">✨ ${item}</div>`);
+      if (data.hasMilk) html += `<div class="milk-tag">🥛 牛乳もつくよ！</div>`;
+      content.innerHTML = html;
+      speak(`今日の給食は、${data.menu.join('、')}。それから、牛乳です。`);
+    }
+
+    function speak(text) {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const uttr = new SpeechSynthesisUtterance(text);
+      uttr.lang = 'ja-JP';
+      window.speechSynthesis.speak(uttr);
+    }
+  </script>
+</body>
+</html>
