@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝の会アプリ - 桜が丘 特別支援学校版（修正版）</title>
+  <style>
+    /* 基本設定 */
+    :root {
+      --bg-color: #f7f9fc;
+      --tab-1: #ffb7b2; --tab-2: #ffdac1; --tab-3: #fff9c4;
+      --tab-4: #e2f0cb; --tab-5: #b5ead7; --tab-6: #c7ceea;
+    }
+
+    body {
+      font-family: 'Yu Gothic', 'Hiragino Kaku Gothic ProN', sans-serif;
+      background-color: var(--bg-color);
+      margin: 0; display: flex; height: 100vh; overflow: hidden;
+    }
+
+    /* 左右のインデックス */
+    .sidebar { width: 100px; display: flex; flex-direction: column; height: 100%; }
+    .tab {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; writing-mode: vertical-rl; text-orientation: upright;
+      font-weight: bold; font-size: 1.1rem; border: 1px solid rgba(0,0,0,0.05);
+      transition: all 0.2s; opacity: 0.7;
+    }
+    .tab.active { width: 125px; opacity: 1; z-index: 10; font-size: 1.2rem; }
+    .sidebar-left .tab.active { border-radius: 0 20px 20px 0; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
+    .sidebar-right .tab.active { border-radius: 20px 0 0 20px; box-shadow: -5px 0 15px rgba(0,0,0,0.1); }
+
+    /* メインエリア */
+    .main-container {
+      flex: 1; background: white; margin: 15px; border-radius: 40px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 30px; text-align: center; position: relative;
+    }
+
+    .page { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; }
+    .page.active { display: flex; animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ボタン共通 */
+    .action-btn {
+      padding: 25px 50px; font-size: 2.2rem; font-weight: bold; color: white;
+      border: none; border-radius: 60px; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+      margin: 15px; transition: all 0.1s; width: 80%; max-width: 550px;
+    }
+    .action-btn:active { transform: scale(0.98) translateY(5px); box-shadow: 0 5px 10px rgba(0,0,0,0.1); }
+
+    /* ページごとのボタン色 */
+    .btn-greet { background: linear-gradient(135deg, #ff9a9e, #fecfef); }
+    .btn-song { background-color: #ff7f50; box-shadow: 0 10px 0 #d35400; }
+    .btn-yobina { background-color: #2ecc71; box-shadow: 0 10px 0 #27ae60; padding: 45px; font-size: 3.2rem; }
+    .btn-weather { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); color: #333; font-size: 1.8rem; }
+    .btn-schedule { background: linear-gradient(135deg, #84fab0, #8fd3f4); color: #2d5a27; font-size: 1.8rem; }
+    .btn-lunch { background: linear-gradient(135deg, #f5576c, #f093fb); font-size: 1.8rem; }
+
+    /* コンテンツ表示用 */
+    .date-text { font-size: 3rem; font-weight: bold; margin-bottom: 10px; color: #333; }
+    .weather-box { background: #fdfcf0; border-radius: 30px; padding: 20px; width: 85%; margin-bottom: 20px; border: 2px solid #fee1a0; }
+    .weather-icon { font-size: 90px; }
+    .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; width: 95%; max-height: 60%; overflow-y: auto; padding: 10px; margin-bottom: 10px; }
+    .card { background: #f9f9f9; padding: 20px; border-radius: 20px; font-size: 1.6rem; font-weight: bold; border: 5px solid #eee; cursor: pointer; }
+    .card.selected { background: #e2f0cb; border-color: #b5ead7; }
+    .menu-box { background: #fff5f8; border-radius: 25px; padding: 25px; width: 85%; margin-bottom: 20px; }
+    .menu-item { font-size: 1.6rem; margin: 8px 0; text-align: left; padding-left: 15%; color: #444; }
+  </style>
+</head>
+<body>
+
+  <audio id="audioSong" src="music.mp3"></audio>
+  <audio id="audioYobina" src="呼名.mp3"></audio>
+
+  <div class="sidebar sidebar-left">
+    <div class="tab tab-t-1" style="background-color: var(--tab-1)" onclick="showPage(1)">1.あいさつ</div>
+    <div class="tab tab-t-2" style="background-color: var(--tab-2)" onclick="showPage(2)">2.呼名</div>
+    <div class="tab tab-t-3" style="background-color: var(--tab-3)" onclick="showPage(3)">3.日付天気</div>
+    <div class="tab tab-t-4" style="background-color: var(--tab-4)" onclick="showPage(4)">4.予定</div>
+    <div class="tab tab-t-5" style="background-color: var(--tab-5)" onclick="showPage(5)">5.給食</div>
+    <div class="tab tab-t-6" style="background-color: var(--tab-6)" onclick="showPage(6)">6.おわり</div>
+  </div>
+
+  <div class="main-container">
+    
+    <div class="page" id="page1">
+      <button class="action-btn btn-greet" onclick="speak('これから朝の会を始めます。気をつけ。れい！')">はじまりの挨拶</button>
+      <button class="action-btn btn-song" onclick="playSong()">☀️ 朝の歌</button>
+    </div>
+
+    <div class="page" id="page2">
+      <button class="action-btn btn-yobina" onclick="playYobina()">📢 呼名 (BGM)</button>
+    </div>
+
+    <div class="page" id="page3">
+      <div id="dateDisplay" class="date-text"></div>
+      <div class="weather-box" id="weatherBox">
+        <div id="weatherLoading">天気を取得しています...</div>
+        <div id="weatherContent" style="display:none;">
+          <div id="weatherIcon" class="weather-icon"></div>
+          <div id="weatherLabel" style="font-size: 2rem; font-weight: bold;"></div>
+          <div id="weatherTemp" style="font-size: 1.5rem; margin-top:10px;"></div>
+        </div>
+      </div>
+      <button class="action-btn btn-weather" onclick="speakWeather()">日付と天気を発表</button>
+    </div>
+
+    <div class="page" id="page4">
+      <h2 style="color: #4cbb6e; font-size: 2rem; margin: 0 0 10px 0;">きょうのよてい</h2>
+      <div class="grid-container" id="scheduleList"></div>
+      <button class="action-btn btn-schedule" onclick="speakSchedule()">予定を発表する</button>
+    </div>
+
+    <div class="page" id="page5">
+      <h2 style="color: #f5576c; font-size: 2rem; margin: 0 0 10px 0;">🍴 きょうのきゅうしょく 🍴</h2>
+      <div id="menuContent" class="menu-box"></div>
+      <button class="action-btn btn-lunch" onclick="speakLunch()">給食を発表！</button>
+    </div>
+
+    <div class="page" id="page6">
+      <button class="action-btn btn-greet" onclick="speak('これで朝の会を終わります。気をつけ。れい！')">おわりの挨拶</button>
+    </div>
+
+  </div>
+
+  <div class="sidebar sidebar-right">
+    <div class="tab tab-t-1" style="background-color: var(--tab-1)" onclick="showPage(1)">1.あいさつ</div>
+    <div class="tab tab-t-2" style="background-color: var(--tab-2)" onclick="showPage(2)">2.呼名</div>
+    <div class="tab tab-t-3" style="background-color: var(--tab-3)" onclick="showPage(3)">3.日付天気</div>
+    <div class="tab tab-t-4" style="background-color: var(--tab-4)" onclick="showPage(4)">4.予定</div>
+    <div class="tab tab-t-5" style="background-color: var(--tab-5)" onclick="showPage(5)">5.給食</div>
+    <div class="tab tab-t-6" style="background-color: var(--tab-6)" onclick="showPage(6)">6.おわり</div>
+  </div>
+
+  <script>
+    /* --- データ定義 --- */
+    const SCHEDULE_DB = {
+      "2026-02-24": [{s:"朝の会",i:"🌅"},{s:"課題学習",i:"✏️"},{s:"生活単元学習",i:"💝"},{s:"身体の動き",i:"🤸"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"}],
+      "2026-02-25": [{s:"朝の会",i:"🌅"},{s:"音楽",i:"🎵"},{s:"図工",i:"🎨"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"}],
+      "2026-02-26": [{s:"朝の会",i:"🌅"},{s:"身体の動き",i:"🤸"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"}],
+      "2026-02-27": [{s:"朝の会",i:"🌅"},{s:"学年集会",i:"👥"},{s:"図工",i:"🎨"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"}]
+    };
+
+    const MENU_DB = {
+      24: { m: ['ごはん', 'ハムカツ', '蒸し野菜添え', '春雨サラダ', '豚汁', 'りんご'], milk: true },
+      25: { m: ['食パン', 'レーズンクリーム', '鱈のホイル焼き', '野菜炒め', 'じゃがいものコンソメ煮', '豆腐のスープ', 'オレンジ'], milk: true },
+      26: { m: ['チャーハン', 'あんかけカップ焼売', '野菜炒め', 'スープ', 'ミックスベリーゼリー'], milk: true },
+      27: { m: ['【新潟】ごはん', '鮭の焼き漬け', '車麩の揚げ煮', 'のっぺ', '鶏汁', 'いももち'], milk: true }
+    };
+
+    let currentPage = 1;
+    let weatherSpeech = "";
+
+    window.onload = () => {
+      initDate();
+      fetchWeather();
+      renderSchedule();
+      renderMenu();
+      showPage(1);
+    };
+
+    function showPage(num) {
+      currentPage = num;
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page' + num).classList.add('active');
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-t-' + num).forEach(t => t.classList.add('active'));
+      window.speechSynthesis.cancel();
+    }
+
+    function initDate() {
+      const now = new Date();
+      const days = ['日','月','火','水','木','金','土'];
+      document.getElementById('dateDisplay').innerText = `${now.getMonth()+1}月${now.getDate()}日 (${days[now.getDay()]})`;
+    }
+
+    /* 天気取得 */
+    async function fetchWeather() {
+      const lat = 35.6186, lon = 140.1554;
+      try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`);
+        const data = await res.json();
+        const code = data.daily.weathercode[0];
+        const weatherMap = { 0:"快晴", 1:"晴れ", 2:"晴れのち曇り", 3:"くもり", 61:"小雨", 63:"雨" };
+        const label = weatherMap[code] || "くもり";
+        const tMax = Math.round(data.daily.temperature_2m_max[0]);
+        const tMin = Math.round(data.daily.temperature_2m_min[0]);
+
+        document.getElementById('weatherLoading').style.display = 'none';
+        document.getElementById('weatherContent').style.display = 'block';
+        document.getElementById('weatherIcon').innerText = code < 3 ? "☀️" : "☁️";
+        document.getElementById('weatherLabel').innerText = label;
+        document.getElementById('weatherTemp').innerText = `最高 ${tMax}℃ / 最低 ${tMin}℃`;
+        
+        weatherSpeech = `今日の天気は${label}です。最高気温は${tMax}度、最低気温は${tMin}度です。`;
+      } catch (e) { document.getElementById('weatherLoading').innerText = "天気読み込み失敗"; }
+    }
+
+    function speakWeather() { speak(document.getElementById('dateDisplay').innerText + weatherSpeech); }
+
+    /* 予定の描画と発表 */
+    function renderSchedule() {
+      const today = new Date().toISOString().split('T')[0];
+      const items = SCHEDULE_DB[today] || [{s:"先生に聞いてね", i:"🏠"}];
+      const container = document.getElementById('scheduleList');
+      container.innerHTML = "";
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `<span style="font-size:2rem">${item.i}</span><br>${item.s}`;
+        card.onclick = () => { card.classList.toggle('selected'); speak(item.s + "の時間です。"); };
+        container.appendChild(card);
+      });
+    }
+
+    function speakSchedule() {
+      const today = new Date().toISOString().split('T')[0];
+      const items = SCHEDULE_DB[today];
+      if (items) {
+        const text = "今日の予定を発表します。" + items.map(i => i.s).join("、") + "、の順番です。";
+        speak(text);
+      } else {
+        speak("今日の予定は登録されていません。先生に聞いてください。");
+      }
+    }
+
+    /* 給食の描画と発表 */
+    function renderMenu() {
+      const day = new Date().getDate();
+      const data = MENU_DB[day];
+      const container = document.getElementById('menuContent');
+      if (data) {
+        container.innerHTML = data.m.map(item => `<div class="menu-item">✨ ${item}</div>`).join('')
+                            + (data.milk ? '<div style="color:blue; font-weight:bold; margin-top:10px;">🥛 牛乳もつくよ</div>' : '');
+      } else { container.innerHTML = "今日のメニューはお休みです。"; }
+    }
+
+    function speakLunch() {
+      const day = new Date().getDate();
+      const data = MENU_DB[day];
+      if (data) speak(`今日の給食は、${data.m.join('、')}、それから牛乳です。`);
+      else speak("今日の給食はお休みです。");
+    }
+
+    /* 音声制御 */
+    function speak(text) {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ja-JP';
+      window.speechSynthesis.speak(u);
+    }
+
+    function playSong() { document.getElementById('audioSong').currentTime = 0; document.getElementById('audioSong').play(); }
+    function playYobina() { document.getElementById('audioYobina').currentTime = 0; document.getElementById('audioYobina').play(); }
+
+    /* キーボード操作 */
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'p') {
+        if (currentPage === 1) playSong();
+        if (currentPage === 2) playYobina();
+        if (currentPage === 3) speakWeather();
+        if (currentPage === 4) speakSchedule();
+        if (currentPage === 5) speakLunch();
+        if (currentPage === 6) speak('これで朝の会を終わります。気をつけ。れい！');
+      }
+    });
+  </script>
+</body>
+</html>
