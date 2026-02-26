@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝の会アプリ - 桜が丘 発表強化版</title>
+  <style>
+    :root {
+      --bg-color: #f7f9fc;
+      --tab-1: #ffb7b2; --tab-2: #ffdac1; --tab-3: #fff9c4;
+      --tab-4: #e2f0cb; --tab-5: #b5ead7; --tab-6: #c7ceea;
+    }
+
+    body {
+      font-family: 'Yu Gothic', 'Hiragino Kaku Gothic ProN', sans-serif;
+      background-color: var(--bg-color);
+      margin: 0; display: flex; height: 100vh; overflow: hidden;
+    }
+
+    /* サイドバー */
+    .sidebar { width: 100px; display: flex; flex-direction: column; height: 100%; }
+    .tab {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; writing-mode: vertical-rl; text-orientation: upright;
+      font-weight: bold; font-size: 1.1rem; border: 1px solid rgba(0,0,0,0.05);
+      transition: all 0.2s; opacity: 0.7;
+    }
+    .tab.active { width: 125px; opacity: 1; z-index: 10; font-size: 1.2rem; }
+    .sidebar-left .tab.active { border-radius: 0 20px 20px 0; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
+    .sidebar-right .tab.active { border-radius: 20px 0 0 20px; box-shadow: -5px 0 15px rgba(0,0,0,0.1); }
+
+    /* メインエリア */
+    .main-container {
+      flex: 1; background: white; margin: 15px; border-radius: 40px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 30px; text-align: center; position: relative;
+    }
+
+    .page { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; }
+    .page.active { display: flex; animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ボタン */
+    .action-btn {
+      padding: 20px 40px; font-size: 2rem; font-weight: bold; color: white;
+      border: none; border-radius: 60px; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+      margin: 10px; transition: all 0.1s; width: 80%; max-width: 500px;
+    }
+    .action-btn:active { transform: scale(0.98); }
+
+    .btn-greet { background: linear-gradient(135deg, #ff9a9e, #fecfef); }
+    .btn-song { background-color: #ff7f50; box-shadow: 0 10px 0 #d35400; }
+    .btn-yobina { background-color: #2ecc71; box-shadow: 0 10px 0 #27ae60; padding: 40px; font-size: 3rem; }
+    .btn-weather { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); color: #333; }
+    .btn-schedule { background: linear-gradient(135deg, #84fab0, #8fd3f4); color: #2d5a27; }
+    .btn-lunch { background: linear-gradient(135deg, #
