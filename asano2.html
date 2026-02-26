@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝の会アプリ - 桜が丘版（天気自動取得版）</title>
+  <style>
+    :root {
+      --bg-color: #f0f7ff;
+      --tab-1: #ffb7b2; --tab-2: #ffdac1; --tab-3: #fff9c4;
+      --tab-4: #e2f0cb; --tab-5: #b5ead7; --tab-6: #c7ceea;
+    }
+
+    body {
+      font-family: 'Yu Gothic', 'Hiragino Kaku Gothic ProN', sans-serif;
+      background-color: var(--bg-color);
+      margin: 0; display: flex; height: 100vh; overflow: hidden;
+    }
+
+    /* サイドバーインデックス */
+    .sidebar { width: 100px; display: flex; flex-direction: column; height: 100%; }
+    .tab {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; writing-mode: vertical-rl; text-orientation: upright;
+      font-weight: bold; font-size: 1rem; border: 1px solid rgba(0,0,0,0.05);
+      transition: all 0.2s; opacity: 0.8;
+    }
+    .tab.active { width: 120px; opacity: 1; z-index: 10; font-size: 1.1rem; }
+    .sidebar-left .tab.active { border-radius: 0 15px 15px 0; box-shadow: 5px 0 10px rgba(0,0,0,0.1); }
+    .sidebar-right .tab.active { border-radius: 15px 0 0 15px; box-shadow: -5px 0 10px rgba(0,0,0,0.1); }
+
+    /* メインエリア */
+    .main-container {
+      flex: 1; background: white; margin: 10px; border-radius: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 20px; text-align: center; position: relative;
+    }
+
+    .page { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; }
+    .page.active { display: flex; animation: fadeIn 0.3s; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* ボタン共通 */
+    .action-btn {
+      padding: 30px 60px; font-size: 2.5rem; font-weight: bold; color: white;
+      border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+      margin: 20px; transition: transform 0.1s;
+    }
+    .action-btn:active { transform: translateY(4px); }
+
+    /* 各デザインの再現 */
+    .btn-greet { background: linear-gradient(135deg, #ff9a9e, #fecfef); }
+    .btn-song { background-color: #ff7f50; box-shadow: 0 10px 0 #d35400; }
+    .btn-song:active { box-shadow: 0 5px 0 #d35400; }
+    .btn-yobina { background-color: #2ecc71; box-shadow: 0 10px 0 #27ae60; padding: 40px 80px; font-size: 3rem; }
+    .btn-yobina:active { box-shadow: 0 5px 0 #27ae60; }
+    .btn-weather { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); color: #444; font-size: 1.5rem; }
+    .btn-lunch { background: linear-gradient(135deg, #f5576c, #f093fb); font-size: 1.5rem; }
+
+    /* 天気表示エリア */
+    #weatherDisplay { margin: 20px; padding: 20px; border-radius: 20px; background: #fff9f0; min-width: 300px; }
+    .weather-icon { font-size: 80px; }
+    .temp-info { font-size: 1.5rem; font-weight: bold; color: #333; }
+
+    /* スケジュール・給食 */
+    .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; width: 95%; max-height: 70%; overflow-y: auto; }
+    .card { background: #f8f9fa; padding: 20px; border-radius: 15px; font-size: 1.4rem; font-weight: bold; border: 4px solid #eee; cursor: pointer; }
+    .card.selected { background: #e2f0cb; border-color: #b5ead7; }
+    .menu-box { background: #fff5f8; border-radius: 20px; padding: 20px; width: 80%; margin-bottom: 20px; }
+    .menu-item { font-size: 1.4rem; margin: 5px 0; text-align: left; padding-left: 15%; }
+  </style>
+</head>
+<body>
+
+  <audio id="morningMusic" src="music.mp3"></audio>
+  <audio id="yobinaMusic" src="呼名.mp3"></audio>
+
+  <div class="sidebar sidebar-left">
+    <div class="tab tab-i-1" style="background-color: var(--tab-1)" onclick="showPage(1)">1.あいさつ</div>
+    <div class="tab tab-i-2" style="background-color: var(--tab-2)" onclick="showPage(2)">2.呼名</div>
+    <div class="tab tab-i-3" style="background-color: var(--tab-3)" onclick="showPage(3)">3.日付天気</div>
+    <div class="tab tab-i-4" style="background-color: var(--tab-4)" onclick="showPage(4)">4.予定</div>
+    <div class="tab tab-i-5" style="background-color: var(--tab-5)" onclick="showPage(5)">5.給食</div>
+    <div class="tab tab-i-6" style="background-color: var(--tab-6)" onclick="showPage(6)">6.おわり</div>
+  </div>
+
+  <div class="main-container">
+    
+    <div class="page" id="page1">
+      <button class="action-btn btn-greet" onclick="playGreetingStart()">はじまりの挨拶</button>
+      <button class="action-btn btn-song" onclick="playMusic()">☀️ 朝の歌</button>
+    </div>
+
+    <div class
