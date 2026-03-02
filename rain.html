@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>あまおとパレット - キャラクター版</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #b2ebf2; touch-action: none; }
+        canvas { display: block; }
+        .ui { position: absolute; top: 15px; width: 100%; text-align: center; font-family: 'Hiragino Sans', sans-serif; color: #00796b; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div class="ui">画面をたくさん叩いてみてね！ 🐸🦆🌼</div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let audioCtx = null;
+
+        // 音を出す準備
+        function playPlopSound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400 + Math.random() * 400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.2);
+            
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const emojis = ['🐸', '🦆', '🌼', '☔️', '🐌', '🍀'];
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.char = emojis[Math.floor(Math.random() * emojis.length)];
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = -Math.random() * 15 - 5;
+                this.gravity = 0.6;
+                this.opacity = 1;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.r = 0; // 波紋用
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.r += 5;
+                this.opacity -= 0.015;
+            }
+            draw() {
+                // 波紋の描画
+                ctx.beginPath();
+                ctx.arc(this.x - (this.vx * 2), this.y - this.vy, this.r, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255, 255, 255, ${this.opacity * 0.5})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // キャラクターの描画
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.globalAlpha = this.opacity;
+                ctx.font = '40px serif';
+                ctx.fillText(this.char, -20, 20);
+                ctx.restore();
+            }
+        }
+
+        function handleTouch(e) {
+            // iOSなどの音ブロックを解除
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const x = e.clientX || (e.touches && e.touches[0].clientX);
+            const y = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            if (x !== undefined) {
+                particles.push(new Particle(x, y));
+                playPlopSound();
+            }
+        }
+
+        window.addEventListener('mousedown', handleTouch);
+        window.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleTouch(e);
+        }, { passive: false });
+
+        function animate() {
+            ctx.fillStyle = '#b2ebf2';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 背景の雨
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1;
+            for(let i=0; i<10; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x - 2, y + 10);
+                ctx.stroke();
+            }
+
+            particles = particles.filter(p => p.opacity > 0 && p.y < canvas.height + 50);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>
+
