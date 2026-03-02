@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝の会アプリ - 桜が丘 3月版</title>
+  <style>
+    :root {
+      --bg-color: #f7f9fc;
+      --tab-1: #ffb7b2; --tab-2: #ffdac1; --tab-3: #fff9c4;
+      --tab-4: #e2f0cb; --tab-5: #b5ead7; --tab-6: #c7ceea;
+    }
+
+    body {
+      font-family: 'Yu Gothic', 'Hiragino Kaku Gothic ProN', sans-serif;
+      background-color: var(--bg-color);
+      margin: 0; display: flex; height: 100vh; overflow: hidden;
+    }
+
+    /* サイドバー */
+    .sidebar { width: 100px; display: flex; flex-direction: column; height: 100%; }
+    .tab {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; writing-mode: vertical-rl; text-orientation: upright;
+      font-weight: bold; font-size: 1.1rem; border: 1px solid rgba(0,0,0,0.05);
+      transition: all 0.2s; opacity: 0.7;
+    }
+    .tab.active { width: 125px; opacity: 1; z-index: 10; font-size: 1.2rem; }
+    .sidebar-left .tab.active { border-radius: 0 20px 20px 0; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
+    .sidebar-right .tab.active { border-radius: 20px 0 0 20px; box-shadow: -5px 0 15px rgba(0,0,0,0.1); }
+
+    /* メインエリア */
+    .main-container {
+      flex: 1; background: white; margin: 15px; border-radius: 40px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 30px; text-align: center; position: relative;
+    }
+
+    .page { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; }
+    .page.active { display: flex; animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ボタン */
+    .action-btn {
+      padding: 20px 40px; font-size: 2rem; font-weight: bold; color: white;
+      border: none; border-radius: 60px; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+      margin: 10px; transition: all 0.1s; width: 80%; max-width: 500px;
+    }
+    .action-btn:active { transform: scale(0.98); }
+
+    .btn-greet { background: linear-gradient(135deg, #ff9a9e, #fecfef); }
+    .btn-song { background-color: #ff7f50; box-shadow: 0 10px 0 #d35400; }
+    .btn-yobina { background-color: #2ecc71; box-shadow: 0 10px 0 #27ae60; padding: 40px; font-size: 3rem; }
+    .btn-weather { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); color: #333; }
+    .btn-schedule { background: linear-gradient(135deg, #84fab0, #8fd3f4); color: #2d5a27; }
+    .btn-lunch { background: linear-gradient(135deg, #f5576c, #f093fb); }
+
+    /* 表示コンテンツ */
+    .date-text { font-size: 3rem; font-weight: bold; margin-bottom: 10px; }
+    .weather-box { background: #fdfcf0; border-radius: 30px; padding: 20px; width: 85%; margin-bottom: 15px; border: 2px solid #fee1a0; }
+    
+    .grid-container { 
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+      gap: 15px; width: 95%; max-height: 55%; overflow-y: auto; padding: 10px; margin-bottom: 10px;
+    }
+    .card { 
+      background: #f9f9f9; padding: 20px; border-radius: 20px; font-size: 1.6rem; 
+      font-weight: bold; border: 5px solid #eee; transition: all 0.3s;
+    }
+    .card.speaking { 
+      background: #fff9c4; border-color: #ffeb3b; transform: scale(1.05); 
+      box-shadow: 0 0 20px rgba(255,235,59,0.5);
+    }
+    .card.done { background: #e2f0cb; border-color: #b5ead7; opacity: 0.8; }
+
+    .menu-box { background: #fff5f8; border-radius: 25px; padding: 25px; width: 85%; min-height: 200px; margin-bottom: 15px; }
+    .menu-item { 
+      font-size: 1.8rem; margin: 10px 0; text-align: left; padding-left: 15%; color: #444;
+      animation: slideIn 0.5s ease-out forwards;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+  </style>
+</head>
+<body>
+
+  <audio id="audioSong" src="music.mp3"></audio>
+  <audio id="audioYobina" src="呼名.mp3"></audio>
+
+  <div class="sidebar sidebar-left">
+    <div class="tab tab-t-1" style="background-color: var(--tab-1)" onclick="showPage(1)">1.あいさつ</div>
+    <div class="tab tab-t-2" style="background-color: var(--tab-2)" onclick="showPage(2)">2.呼名</div>
+    <div class="tab tab-t-3" style="background-color: var(--tab-3)" onclick="showPage(3)">3.日付天気</div>
+    <div class="tab tab-t-4" style="background-color: var(--tab-4)" onclick="showPage(4)">4.予定</div>
+    <div class="tab tab-t-5" style="background-color: var(--tab-5)" onclick="showPage(5)">5.給食</div>
+    <div class="tab tab-t-6" style="background-color: var(--tab-6)" onclick="showPage(6)">6.おわり</div>
+  </div>
+
+  <div class="main-container">
+    
+    <div class="page" id="page1">
+      <button class="action-btn btn-greet" onclick="speak('これから朝の会を始めます。気をつけ。れい！')">はじまりの挨拶</button>
+      <button class="action-btn btn-song" onclick="playSong()">☀️ 朝の歌</button>
+    </div>
+
+    <div class="page" id="page2">
+      <button class="action-btn btn-yobina" onclick="playYobina()">📢 呼名 (BGM)</button>
+    </div>
+
+    <div class="page" id="page3">
+      <div id="dateDisplay" class="date-text"></div>
+      <div class="weather-box">
+        <div id="weatherContent">
+          <div id="weatherIcon" style="font-size: 80px;">☁️</div>
+          <div id="weatherLabel" style="font-size: 1.8rem; font-weight: bold;">読込中...</div>
+          <div id="weatherTemp" style="font-size: 1.4rem;"></div>
+        </div>
+      </div>
+      <button class="action-btn btn-weather" onclick="speakWeather()">日付と天気を発表</button>
+    </div>
+
+    <div class="page" id="page4">
+      <h2 style="color: #4cbb6e; margin: 0;">きょうのよてい</h2>
+      <div class="grid-container" id="scheduleList"></div>
+      <button class="action-btn btn-schedule" id="btnRevealSchedule" onclick="revealSchedule()">予定を発表する</button>
+    </div>
+
+    <div class="page" id="page5">
+      <h2 style="color: #f5576c; margin: 0;">🍴 きょうのきゅうしょく 🍴</h2>
+      <div id="menuContent" class="menu-box">
+        <div style="color: #999; margin-top: 60px; font-size: 1.5rem;">ボタンを押してね</div>
+      </div>
+      <button class="action-btn btn-lunch" id="btnRevealLunch" onclick="revealLunch()">給食を発表！</button>
+    </div>
+
+    <div class="page" id="page6">
+      <button class="action-btn btn-greet" onclick="speak('これで朝の会を終わります。気をつけ。れい！')">おわりの挨拶</button>
+    </div>
+
+  </div>
+
+  <div class="sidebar sidebar-right">
+    <div class="tab tab-t-1" style="background-color: var(--tab-1)" onclick="showPage(1)">1.あいさつ</div>
+    <div class="tab tab-t-2" style="background-color: var(--tab-2)" onclick="showPage(2)">2.呼名</div>
+    <div class="tab tab-t-3" style="background-color: var(--tab-3)" onclick="showPage(3)">3.日付天気</div>
+    <div class="tab tab-t-4" style="background-color: var(--tab-4)" onclick="showPage(4)">4.予定</div>
+    <div class="tab tab-t-5" style="background-color: var(--tab-5)" onclick="showPage(5)">5.給食</div>
+    <div class="tab tab-t-6" style="background-color: var(--tab-6)" onclick="showPage(6)">6.おわり</div>
+  </div>
+
+  <script>
+    // 3月の予定データベース
+    const SCHEDULE_DB = {
+      "2026-03-02": [{s:"朝の会",i:"🌅"},{s:"生活単元学習",i:"💝"},{s:"体育",i:"🏃"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-03": [{s:"朝の会",i:"🌅"},{s:"課題学習",i:"✏️"},{s:"身体の動き",i:"🤸"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-04": [{s:"朝の会",i:"🌅"},{s:"音楽",i:"🎵"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-05": [{s:"朝の会",i:"🌅"},{s:"身体の動き",i:"🤸"},{s:"体育",i:"🏃"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-06": [{s:"朝の会",i:"🌅"},{s:"日生／道徳",i:"🕊️"},{s:"学年集会",i:"👥"},{s:"図工",i:"🎨"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-09": [{s:"朝の会",i:"🌅"},{s:"生活単元学習",i:"💝"},{s:"体育",i:"🏃"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-10": [{s:"朝の会",i:"🌅"},{s:"課題学習",i:"✏️"},{s:"身体の動き",i:"🤸"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-11": [{s:"朝の会",i:"🌅"},{s:"音楽",i:"🎵"},{s:"身体の動き",i:"🤸"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-12": [{s:"朝の会",i:"🌅"},{s:"卒業式予行練習",i:"🎓"},{s:"身体の動き",i:"🤸"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-13": [{s:"朝の会",i:"🌅"},{s:"学年集会",i:"👥"},{s:"図工",i:"🎨"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-16": [{s:"朝の会",i:"🌅"},{s:"生活単元学習",i:"💝"},{s:"体育",i:"🏃"},{s:"身体の動き",i:"🤸"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-17": [{s:"朝の会",i:"🌅"},{s:"卒業式",i:"🎓"},{s:"帰りの会",i:"🏠"},{s:"11:50下校",i:"📢"}],
+      "2026-03-18": [{s:"朝の会",i:"🌅"},{s:"音楽",i:"🎵"},{s:"身体の動き",i:"🤸"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-19": [{s:"朝の会",i:"🌅"},{s:"身体の動き",i:"🤸"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-23": [{s:"朝の会",i:"🌅"},{s:"生活単元学習",i:"💝"},{s:"体育",i:"🏃"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-24": [{s:"朝の会",i:"🌅"},{s:"修了式",i:"📜"},{s:"離任式",i:"👋"},{s:"帰りの会",i:"🏠"},{s:"11:50下校",i:"📢"}]
+    };
+
+    // 給食メニュー（例：3月分として更新）
+    const MENU_DB = {
+      2: { m: ['ごはん', 'ポークカレー', '福神漬け', 'フルーツポンチ'], milk: true },
+      3: { m: ['五目ごはん', '鰆の西京焼き', '菜の花のお浸し', 'ひな祭りゼリー'], milk: true },
+      4: { m: ['コッペパン', 'ジャム', 'ミートボール', 'コーンスープ'], milk: true },
+      5: { m: ['スパゲッティ', 'サラダ', '手作りクッキー'], milk: true },
+      6: { m: ['ごはん', 'ハンバーグ', 'ポテトサラダ', '味噌汁'], milk: true }
+      // ※必要に応じて追加してください
+    };
+
+    let currentPage = 1;
+    let weatherSpeech = "";
+
+    window.onload = () => {
+      initDate();
+      fetchWeather();
+      renderScheduleStatic();
+      showPage(1);
+    };
+
+    function getTodayStr() {
+      const n = new Date();
+      return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+    }
+
+    function initDate() {
+      const now = new Date();
+      const days = ['日','月','火','水','木','金','土'];
+      document.getElementById('dateDisplay').innerText = `${now.getMonth()+1}月${now.getDate()}日 (${days[now.getDay()]})`;
+    }
+
+    function showPage(num) {
+      currentPage = num;
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page' + num).classList.add('active');
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-t-' + num).forEach(t => t.classList.add('active'));
+      window.speechSynthesis.cancel();
+    }
+
+    /* 予定の制御 */
+    function renderScheduleStatic() {
+      const today = getTodayStr();
+      const items = SCHEDULE_DB[today] || [{s:"春休み・または休日です", i:"🌸"}];
+      const container = document.getElementById('scheduleList');
+      container.innerHTML = "";
+      items.forEach((item, idx) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.id = `sch-card-${idx}`;
+        card.innerHTML = `<span style="font-size:2rem">${item.i}</span><br>${item.s}`;
+        container.appendChild(card);
+      });
+    }
+
+    async function revealSchedule() {
+      const btn = document.getElementById('btnRevealSchedule');
+      btn.disabled = true;
+      const today = getTodayStr();
+      const items = SCHEDULE_DB[today];
+      if (!items) { speak("今日の予定はありません。"); btn.disabled = false; return; }
+
+      speak("今日の予定を発表します。");
+      await new Promise(r => setTimeout(r, 2000));
+
+      for (let i = 0; i < items.length; i++) {
+        const card = document.getElementById(`sch-card-${i}`);
+        card.classList.add('speaking');
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        let text = items[i].s;
+        if(text.includes("11:50")) text = "今日は、じゅういちじ ごじゅっぷん げこうです。";
+        
+        await speakPromise(text + "。");
+        card.classList.remove('speaking');
+        card.classList.add('done');
+      }
+      speak("以上の順番です。今日も一日頑張りましょう！");
+      btn.disabled = false;
+    }
+
+    /* 給食の制御 */
+    async function revealLunch() {
+      const btn = document.getElementById('btnRevealLunch');
+      btn.disabled = true;
+      const day = new Date().getDate();
+      const data = MENU_DB[day];
+      const container = document.getElementById('menuContent');
+      container.innerHTML = "";
+
+      if (!data) { 
+        speak("今日の給食はありません。"); 
+        container.innerHTML = '<div style="margin-top:60px; font-size:1.5rem;">給食はありません</div>';
+        btn.disabled = false;
+        return; 
+      }
+
+      speak("今日の給食を発表します！");
+      await new Promise(r => setTimeout(r, 2000));
+
+      for (const item of data.m) {
+        const div = document.createElement('div');
+        div.className = 'menu-item';
+        div.innerHTML = `✨ ${item}`;
+        container.appendChild(div);
+        await speakPromise(item);
+      }
+      
+      if (data.milk) {
+        const milkDiv = document.createElement('div');
+        milkDiv.className = 'menu-item';
+        milkDiv.style.color = "blue";
+        milkDiv.innerHTML = `🥛 牛乳`;
+        container.appendChild(milkDiv);
+        await speakPromise("それから、牛乳です。");
+      }
+      speak("残さず美味しく食べましょう！");
+      btn.disabled = false;
+    }
+
+    /* 天気 */
+    async function fetchWeather() {
+      try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=35.6186&longitude=140.1554&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`);
+        const data = await res.json();
+        const code = data.daily.weathercode[0];
+        const tMax = Math.round(data.daily.temperature_2m_max[0]);
+        const tMin = Math.round(data.daily.temperature_2m_min[0]);
+        const label = code < 3 ? "晴れ" : "くもり";
+        document.getElementById('weatherLabel').innerText = label;
+        document.getElementById('weatherTemp').innerText = `最高 ${tMax}度 / 最低 ${tMin}度`;
+        weatherSpeech = `今日の天気は${label}。最高気温${tMax}度、最低気温は${tMin}度です。`;
+      } catch (e) { document.getElementById('weatherLabel').innerText = "取得失敗"; }
+    }
+
+    function speakWeather() { speak(document.getElementById('dateDisplay').innerText + weatherSpeech); }
+
+    /* 音声共通 */
+    function speakPromise(text) {
+      return new Promise((resolve) => {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ja-JP';
+        u.onend = () => resolve();
+        window.speechSynthesis.speak(u);
+      });
+    }
+
+    function speak(text) {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ja-JP';
+      window.speechSynthesis.speak(u);
+    }
+
+    function playSong() { const a = document.getElementById('audioSong'); a.currentTime = 0; a.play(); }
+    function playYobina() { const a = document.getElementById('audioYobina'); a.currentTime = 0; a.play(); }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'p') {
+        if (currentPage === 1) playSong();
+        if (currentPage === 2) playYobina();
+        if (currentPage === 3) speakWeather();
+        if (currentPage === 4) revealSchedule();
+        if (currentPage === 5) revealLunch();
+        if (currentPage === 6) speak('これで終わります。れい！');
+      }
+    });
+  </script>
+</body>
+</html>
