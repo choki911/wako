@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>いろ・おと・はなび（ブラウザ対応版）</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #000;
+            font-family: sans-serif; touch-action: none; /* ブラウザのジェスチャーを無効化 */
+        }
+        canvas { display: block; }
+        #touch-area {
+            position: absolute; bottom: 0; left: 0;
+            width: 100%; height: 25%;
+            background: rgba(255, 255, 255, 0.1);
+            border-top: 5px dashed rgba(255, 255, 255, 0.3);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10;
+        }
+        #touch-label { color: white; font-size: 2rem; opacity: 0.5; pointer-events: none; }
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 100;
+        }
+        .start-btn {
+            padding: 40px 80px; font-size: 3rem; border-radius: 100px;
+            background: #ff5722; color: white; border: none; cursor: pointer;
+            box-shadow: 0 10px 0 #bf360c;
+        }
+        .start-btn:active { transform: translateY(5px); box-shadow: none; }
+    </style>
+</head>
+<body>
+
+<div id="overlay">
+    <h1 style="color: white; margin-bottom: 20px;">いろ・おと・はなび</h1>
+    <button class="start-btn" id="startBtn">画面を おしてね</button>
+</div>
+
+<div id="touch-area"><div id="touch-label">ここを さわってね</div></div>
+<canvas id="canvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const touchArea = document.getElementById('touch-area');
+    const startBtn = document.getElementById('startBtn');
+    let particles = [];
+    let audioCtx = null;
+
+    const colors = ['#FF1744', '#F50057', '#D500F9', '#3D5AFE', '#00E5FF', '#00E676', '#FFEA00', '#FF9100', '#FFFFFF', '#FF4081'];
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // 音声の初期化（ユーザーのクリックで実行）
+    function initAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // ダミーの音を鳴らしてアンロックする
+        const buffer = audioCtx.createBuffer(1, 1, 22050);
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtx.destination);
+        source.start(0);
+        
+        document.getElementById('overlay').style.display = 'none';
+        animate();
+    }
+
+    startBtn.addEventListener('click', initAudio);
+    // タッチでも反応するようにする（Android/iOS対応）
+    startBtn.addEventListener('touchstart', (e) => { e.preventDefault(); initAudio(); });
+
+    function playTone(index) {
+        if (!audioCtx) return;
+        // すでにsuspended（停止）状態なら再開させる
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const freqs = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25];
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freqs[index % 10], audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+    }
+
+    function createExplosion(x, y, colorIndex) {
+        const color = colors[colorIndex % 10];
+        playTone(colorIndex);
+        document.body.style.backgroundColor = color;
+        setTimeout(() => { document.body.style.backgroundColor = '#000'; }, 80);
+
+        for (let i = 0; i < 25; i++) {
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 20,
+                vy: (Math.random() - 0.5) * 20,
+                size: Math.random() * 12 + 4,
+                color: color,
+                life: 1.0
+            });
+        }
+    }
+
+    // タッチ＆マウスイベント
+    const triggerAction = (e) => {
+        if (!audioCtx) return;
+        const x = (e.touches ? e.touches[0].clientX : e.clientX);
+        const y = (e.touches ? e.touches[0].clientY : e.clientY);
+        createExplosion(x, y, Math.floor(Math.random() * 10));
+    };
+
+    touchArea.addEventListener('touchstart', (e) => { e.preventDefault(); triggerAction(e); });
+    touchArea.addEventListener('mousedown', (e) => { triggerAction(e); });
+
+    // テンキーイベント
+    window.addEventListener('keydown', (e) => {
+        if (!audioCtx) return;
+        if (e.key >= '0' && e.key <= '9') {
+            const num = parseInt(e.key);
+            const x = (canvas.width / 11) * (num + 1);
+            const y = canvas.height * 0.6; 
+            createExplosion(x, y, num);
+        }
+    });
+
+    function animate() {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        particles.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.02;
+            ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+            if (p.life <= 0) particles.splice(i, 1);
+        });
+        requestAnimationFrame(animate);
+    }
+</script>
+</body>
+</html>
+
