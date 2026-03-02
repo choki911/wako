@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>さくら・ふわふわ・アクション</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #001; /* 深い紺色 */
+            font-family: sans-serif; touch-action: none;
+        }
+        canvas { display: block; }
+        #touch-area {
+            position: absolute; bottom: 0; left: 0;
+            width: 100%; height: 25%;
+            background: rgba(255, 255, 255, 0.05);
+            border-top: 3px dashed rgba(255, 255, 255, 0.2);
+            z-index: 10;
+        }
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 100;
+        }
+        .start-btn {
+            padding: 40px 80px; font-size: 3rem; border-radius: 100px;
+            background: #f48fb1; color: white; border: none; cursor: pointer;
+            box-shadow: 0 10px 0 #c2185b;
+        }
+    </style>
+</head>
+<body>
+
+<div id="overlay">
+    <button class="start-btn" id="startBtn">はじめる</button>
+</div>
+
+<div id="touch-area"></div>
+<canvas id="canvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const touchArea = document.getElementById('touch-area');
+    const startBtn = document.getElementById('startBtn');
+    
+    let particles = [];
+    let bubbles = [];
+    let audioCtx = null;
+    const colors = ['#FF80AB', '#FF4081', '#F50057', '#C51162', '#80D8FF', '#40C4FF', '#00B0FF', '#0091EA', '#B2FF59', '#EEFF41'];
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        initBubbles();
+    }
+    window.addEventListener('resize', resize);
+
+    // 背景でふわふわ漂うシャボン玉の初期化
+    function initBubbles() {
+        bubbles = [];
+        for (let i = 0; i < 15; i++) {
+            bubbles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * (canvas.height * 0.7), // 上部70%に配置
+                vx: (Math.random() - 0.5) * 1,
+                vy: (Math.random() - 0.5) * 1,
+                size: Math.random() * 40 + 20,
+                color: 'rgba(255, 255, 255, 0.2)'
+            });
+        }
+    }
+
+    function initAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        document.getElementById('overlay').style.display = 'none';
+        resize();
+        animate();
+    }
+
+    startBtn.addEventListener('click', initAudio);
+    startBtn.addEventListener('touchstart', (e) => { e.preventDefault(); initAudio(); });
+
+    function playTone(index) {
+        if (!audioCtx) return;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const freqs = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25];
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freqs[index % 10], audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.8);
+    }
+
+    function createExplosion(x, y, colorIndex) {
+        const color = colors[colorIndex % 10];
+        playTone(colorIndex);
+        
+        // 衝撃波：上のシャボン玉を上に突き飛ばす
+        bubbles.forEach(b => {
+            const dx = b.x - x;
+            const dy = b.y - y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 500) {
+                b.vy -= (500 - dist) / 20; // 距離に応じて上に飛ばす
+            }
+        });
+
+        // 桜の花びらパーティクル
+        for (let i = 0; i < 20; i++) {
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 15,
+                vy: (Math.random() - 1.0) * 20, // 上方向に強く飛ぶ
+                size: Math.random() * 15 + 5,
+                color: color,
+                angle: Math.random() * Math.PI * 2,
+                spin: (Math.random() - 0.5) * 0.2,
+                life: 1.0
+            });
+        }
+    }
+
+    const triggerAction = (e) => {
+        if (!audioCtx) return;
+        const x = (e.touches ? e.touches[0].clientX : e.clientX);
+        const y = (e.touches ? e.touches[0].clientY : e.clientY);
+        createExplosion(x, y, Math.floor(Math.random() * 10));
+    };
+
+    touchArea.addEventListener('touchstart', (e) => { e.preventDefault(); triggerAction(e); });
+    touchArea.addEventListener('mousedown', (e) => { triggerAction(e); });
+
+    window.addEventListener('keydown', (e) => {
+        if (!audioCtx) return;
+        if (e.key >= '0' && e.key <= '9') {
+            const num = parseInt(e.key);
+            createExplosion((canvas.width / 11) * (num + 1), canvas.height * 0.8, num);
+        }
+    });
+
+    function drawSakura(ctx, x, y, size, angle, color) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.fillStyle = color;
+        // 桜の花びら風の形
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(-size, -size, -size/2, -size*1.5, 0, -size);
+        ctx.bezierCurveTo(size/2, -size*1.5, size, -size, 0, 0);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function animate() {
+        // 背景の塗りつぶし
+        ctx.fillStyle = 'rgba(0, 5, 20, 0.3)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // シャボン玉の更新と描画
+        bubbles.forEach(b => {
+            b.x += b.vx;
+            b.y += b.vy;
+            b.vy += 0.05; // ゆっくり戻る重力
+            // 画面端で跳ね返る
+            if (b.x < 0 || b.x > canvas.width) b.vx *= -1;
+            if (b.y < 0) { b.y = 0; b.vy *= -0.5; }
+            if (b.y > canvas.height * 0.7) { b.y = canvas.height * 0.7; b.vy *= -0.5; }
+
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+            ctx.stroke();
+            // ハイライト
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.arc(b.x - b.size*0.3, b.y - b.size*0.3, b.size*0.2, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // 桜パーティクルの更新と描画
+        particles.forEach((p, i) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.2; // 重力
+            p.angle += p.spin;
+            p.life -= 0.015;
+            
+            ctx.globalAlpha = p.life;
+            drawSakura(ctx, p.x, p.y, p.size, p.angle, p.color);
+            if (p.life <= 0) particles.splice(i, 1);
+        });
+        ctx.globalAlpha = 1.0;
+
+        requestAnimationFrame(animate);
+    }
+</script>
+</body>
+</html>
