@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>いろ・おと・はなび</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #000;
+            font-family: sans-serif;
+        }
+        /* メインキャンバス */
+        canvas { display: block; }
+
+        /* 児童が触れるエリア（下25%） */
+        #touch-area {
+            position: absolute; bottom: 0; left: 0;
+            width: 100%; height: 25%;
+            background: rgba(255, 255, 255, 0.1);
+            border-top: 5px dashed rgba(255, 255, 255, 0.3);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10;
+        }
+        #touch-label {
+            color: white; font-size: 2rem; font-weight: bold;
+            opacity: 0.5; pointer-events: none;
+        }
+
+        /* スタート画面（ブラウザの音声制限解除用） */
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: flex;
+            align-items: center; justify-content: center; z-index: 100;
+        }
+        .start-btn {
+            padding: 40px 80px; font-size: 3rem; border-radius: 100px;
+            background: #ff5722; color: white; border: none; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="overlay">
+    <button class="start-btn" onclick="startApp()">はじめる</button>
+</div>
+
+<div id="touch-area">
+    <div id="touch-label">ここを さわってね</div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const touchArea = document.getElementById('touch-area');
+    let particles = [];
+    let audioCtx = null;
+
+    // 色のリスト
+    const colors = ['#FF1744', '#F50057', '#D500F9', '#3D5AFE', '#00E5FF', '#00E676', '#FFEA00', '#FF9100', '#FFFFFF', '#FF4081'];
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function startApp() {
+        document.getElementById('overlay').style.display = 'none';
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        animate();
+    }
+
+    // 音を鳴らす（ドレミ...の周波数）
+    function playTone(index) {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const freqs = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.2
