@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝の会アプリ - 桜が丘 3月版</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@400;700&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #f7f9fc;
+      --tab-1: #ffb7b2; --tab-2: #ffdac1; --tab-3: #fff9c4;
+      --tab-4: #e2f0cb; --tab-5: #b5ead7; --tab-6: #c7ceea;
+      /* weather-app 用変数 */
+      --w-text-dark: #3a2a1a;
+      --w-text-mid:  #6b4c2a;
+      --w-accent:    #ff7c43;
+      --w-btn:       #ff6b35;
+      --w-btn-hover: #e85d2c;
+      --w-card-bg:   rgba(255,255,255,0.72);
+      --w-shadow:    0 8px 40px rgba(200,120,50,0.18);
+    }
+
+    body {
+      font-family: 'Yu Gothic', 'Hiragino Kaku Gothic ProN', sans-serif;
+      background-color: var(--bg-color);
+      margin: 0; display: flex; height: 100vh; overflow: hidden;
+    }
+
+    /* サイドバー */
+    .sidebar { width: 100px; display: flex; flex-direction: column; height: 100%; }
+    .tab {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; writing-mode: vertical-rl; text-orientation: upright;
+      font-weight: bold; font-size: 1.1rem; border: 1px solid rgba(0,0,0,0.05);
+      transition: all 0.2s; opacity: 0.7;
+    }
+    .tab.active { width: 125px; opacity: 1; z-index: 10; font-size: 1.2rem; }
+    .sidebar-left .tab.active { border-radius: 0 20px 20px 0; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
+    .sidebar-right .tab.active { border-radius: 20px 0 0 20px; box-shadow: -5px 0 15px rgba(0,0,0,0.1); }
+
+    /* メインエリア */
+    .main-container {
+      flex: 1; background: white; margin: 15px; border-radius: 40px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 30px; text-align: center; position: relative;
+    }
+
+    .page { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; }
+    .page.active { display: flex; animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ボタン */
+    .action-btn {
+      padding: 20px 40px; font-size: 2rem; font-weight: bold; color: white;
+      border: none; border-radius: 60px; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+      margin: 10px; transition: all 0.1s; width: 80%; max-width: 500px;
+    }
+    .action-btn:active { transform: scale(0.98); }
+
+    .btn-greet { background: linear-gradient(135deg, #ff9a9e, #fecfef); }
+    .btn-song { background-color: #ff7f50; box-shadow: 0 10px 0 #d35400; }
+    .btn-yobina { background-color: #2ecc71; box-shadow: 0 10px 0 #27ae60; padding: 40px; font-size: 3rem; }
+    .btn-weather { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); color: #333; }
+    .btn-schedule { background: linear-gradient(135deg, #84fab0, #8fd3f4); color: #2d5a27; }
+    .btn-lunch { background: linear-gradient(135deg, #f5576c, #f093fb); }
+
+    /* 表示コンテンツ */
+    .grid-container { 
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+      gap: 15px; width: 95%; max-height: 55%; overflow-y: auto; padding: 10px; margin-bottom: 10px;
+    }
+    .card { 
+      background: #f9f9f9; padding: 20px; border-radius: 20px; font-size: 1.6rem; 
+      font-weight: bold; border: 5px solid #eee; transition: all 0.3s;
+    }
+    .card.speaking { 
+      background: #fff9c4; border-color: #ffeb3b; transform: scale(1.05); 
+      box-shadow: 0 0 20px rgba(255,235,59,0.5);
+    }
+    .card.done { background: #e2f0cb; border-color: #b5ead7; opacity: 0.8; }
+
+    .menu-box { background: #fff5f8; border-radius: 25px; padding: 25px; width: 85%; min-height: 200px; margin-bottom: 15px; overflow-y: auto; }
+    .menu-item { 
+      font-size: 1.6rem; margin: 8px 0; text-align: left; padding-left: 10%; color: #444;
+      animation: slideIn 0.5s ease-out forwards;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+
+    /* ============================================
+       weather-app 統合スタイル
+       ============================================ */
+    .weather-card {
+      background: linear-gradient(170deg, #ffe0a0 0%, #ffb347 40%, #ff8c42 75%, #e8663a 100%);
+      border-radius: 32px; padding: 32px 40px 36px; max-width: 480px; width: 92%;
+      box-shadow: var(--w-shadow), inset 0 1px 0 rgba(255,255,255,0.5);
+      border: 1.5px solid rgba(255,255,255,0.4); text-align: center; position: relative; overflow: hidden;
+    }
+    .w-cloud-bg { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.15); filter: blur(40px); pointer-events: none; }
+    .wc1 { width: 300px; height: 100px; top: 5%;  left: -60px; }
+    .wc2 { width: 200px; height:  80px; top: 12%; right: 20px; }
+    .wc3 { width: 360px; height: 100px; bottom: 10%; left: -40px; }
+    .w-location { font-family: 'Kaisei Decol', serif; font-size: 0.95rem; color: var(--w-text-mid); letter-spacing: 0.12em; margin-bottom: 4px; position: relative; }
+    .w-date-display { font-family: 'Kaisei Decol', serif; font-size: 1.6rem; color: var(--w-text-dark); font-weight: 700; margin-bottom: 20px; position: relative; }
+    .weather-art { font-size: 110px; line-height: 1; margin: 0 auto 12px; filter: drop-shadow(0 6px 18px rgba(200,100,30,0.25)); animation: w-floatArt 4s ease-in-out infinite; display: block; position: relative; }
+    @keyframes w-floatArt { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .weather-label { font-family: 'Kaisei Decol', serif; font-size: 1.9rem; font-weight: 700; color: var(--w-text-dark); margin-bottom: 4px; position: relative; }
+    .weather-desc { font-size: 0.92rem; color: var(--w-text-mid); min-height: 2rem; line-height: 1.6; margin-bottom: 18px; position: relative; }
+    .w-stats { display: flex; gap: 12px; justify-content: center; margin-bottom: 22px; flex-wrap: wrap; position: relative; }
+    .w-stat { background: rgba(255,180,80,0.25); border-radius: 14px; padding: 10px 18px; min-width: 95px; }
+    .w-stat-label { font-size: 0.72rem; color: var(--w-text-mid); margin-bottom: 3px; }
+    .w-stat-value { font-family: 'Kaisei Decol', serif; font-size: 1.35rem; font-weight: 700; color: var(--w-text-dark); }
+    .w-fetch-btn { background: linear-gradient(135deg, var(--w-btn), #ff9a3c); color: #fff; border: none; border-radius: 999px; padding: 16px 38px; font-family: 'Zen Maru Gothic', sans-serif; font-size: 1.1rem; font-weight: 700; cursor: pointer; box-shadow: 0 6px 24px rgba(255,107,53,0.45); transition: all 0.15s; letter-spacing: 0.08em; position: relative; }
+    .w-fetch-btn:hover { background: linear-gradient(135deg, var(--w-btn-hover), #ff7e20); transform: translateY(-2px); box-shadow: 0 10px 32px rgba(255,107,53,0.55); }
+    .w-fetch-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .w-loading { display: none; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 16px; position: relative; }
+    .w-spinner { width: 44px; height: 44px; border: 5px solid rgba(255,150,50,0.25); border-top-color: var(--w-accent); border-radius: 50%; animation: w-spin 0.9s linear infinite; }
+    @keyframes w-spin { to { transform: rotate(360deg); } }
+    .w-weather-content { display: none; position: relative; }
+    .w-error-msg { display: none; color: #c0392b; font-size: 0.88rem; margin-bottom: 10px; padding: 8px 14px; background: rgba(255,100,100,0.14); border-radius: 10px; position: relative; }
+    .w-speak-btn { background: none; border: 2px solid var(--w-accent); color: var(--w-accent); border-radius: 999px; padding: 9px 24px; font-size: 0.9rem; cursor: pointer; margin-top: 10px; transition: all 0.2s; display: none; position: relative; }
+    .w-speak-btn:hover { background: var(--w-accent); color: #fff; }
+  </style>
+</head>
+<body>
+
+  <audio id="audioSong" src="music.mp3"></audio>
+  <audio id="audioYobina" src="呼名.mp3"></audio>
+
+  <div class="sidebar sidebar-left">
+    <div class="tab tab-t-1" style="background-color: var(--tab-1)" onclick="showPage(1)">1.あいさつ</div>
+    <div class="tab tab-t-2" style="background-color: var(--tab-2)" onclick="showPage(2)">2.呼名</div>
+    <div class="tab tab-t-3" style="background-color: var(--tab-3)" onclick="showPage(3)">3.日付天気</div>
+    <div class="tab tab-t-4" style="background-color: var(--tab-4)" onclick="showPage(4)">4.予定</div>
+    <div class="tab tab-t-5" style="background-color: var(--tab-5)" onclick="showPage(5)">5.給食</div>
+    <div class="tab tab-t-6" style="background-color: var(--tab-6)" onclick="showPage(6)">6.おわり</div>
+  </div>
+
+  <div class="main-container">
+    <div class="page" id="page1">
+      <button class="action-btn btn-greet" onclick="speak('これから朝の会を始めます。気をつけ。れい！')">はじまりの挨拶</button>
+      <button class="action-btn btn-song" onclick="playSong()">☀️ 朝の歌</button>
+    </div>
+
+    <div class="page" id="page2">
+      <button class="action-btn btn-yobina" onclick="playYobina()">📢 呼名 (BGM)</button>
+    </div>
+
+    <div class="page" id="page3">
+      <div class="weather-card">
+        <div class="w-cloud-bg wc1"></div><div class="w-cloud-bg wc2"></div><div class="w-cloud-bg wc3"></div>
+        <div class="w-location">📍 千葉市若葉区 加曽利町</div>
+        <div class="w-date-display" id="dateDisplay">—</div>
+        <div class="w-loading" id="wLoading">
+          <div class="w-spinner"></div>
+          <div style="color:var(--w-text-mid);font-size:0.9rem;">お天気を調べています…</div>
+        </div>
+        <div class="w-error-msg" id="wErrorMsg"></div>
+        <div class="w-weather-content" id="wWeatherContent">
+          <div class="weather-art" id="weatherArt">☀️</div>
+          <div class="weather-label" id="weatherLabel">—</div>
+          <div class="weather-desc" id="weatherDesc"></div>
+          <div class="w-stats">
+            <div class="w-stat"><div class="w-stat-label">🌡 最高</div><div class="w-stat-value" id="tempMax">—</div></div>
+            <div class="w-stat"><div class="w-stat-label">🌡 最低</div><div class="w-stat-value" id="tempMin">—</div></div>
+            <div class="w-stat"><div class="w-stat-label">💧 降水</div><div class="w-stat-value" id="precip">—</div></div>
+            <div class="w-stat"><div class="w-stat-label">💨 風速</div><div class="w-stat-value" id="wind">—</div></div>
+          </div>
+          <button class="w-speak-btn" id="wSpeakBtn" onclick="speakWeather()">🔊 もう一度聞く</button>
+        </div>
+        <button class="w-fetch-btn" id="fetchBtn" onclick="fetchWeather()">🌤 今日のお天気を調べる</button>
+      </div>
+    </div>
+
+    <div class="page" id="page4">
+      <h2 style="color: #4cbb6e; margin: 0;">きょうのよてい</h2>
+      <div class="grid-container" id="scheduleList"></div>
+      <button class="action-btn btn-schedule" id="btnRevealSchedule" onclick="revealSchedule()">予定を発表する</button>
+    </div>
+
+    <div class="page" id="page5">
+      <h2 style="color: #f5576c; margin: 0;">🍴 きょうのきゅうしょく 🍴</h2>
+      <div id="menuContent" class="menu-box">
+        <div style="color: #999; margin-top: 60px; font-size: 1.5rem;">ボタンを押してね</div>
+      </div>
+      <button class="action-btn btn-lunch" id="btnRevealLunch" onclick="revealLunch()">給食を発表！</button>
+    </div>
+
+    <div class="page" id="page6">
+      <button class="action-btn btn-greet" onclick="speak('これで朝の会を終わります。気をつけ。れい！')">おわりの挨拶</button>
+    </div>
+  </div>
+
+  <div class="sidebar sidebar-right">
+    <div class="tab tab-t-1" style="background-color: var(--tab-1)" onclick="showPage(1)">1.</div>
+    <div class="tab tab-t-2" style="background-color: var(--tab-2)" onclick="showPage(2)">2.</div>
+    <div class="tab tab-t-3" style="background-color: var(--tab-3)" onclick="showPage(3)">3.</div>
+    <div class="tab tab-t-4" style="background-color: var(--tab-4)" onclick="showPage(4)">4.</div>
+    <div class="tab tab-t-5" style="background-color: var(--tab-5)" onclick="showPage(5)">5.</div>
+    <div class="tab tab-t-6" style="background-color: var(--tab-6)" onclick="showPage(6)">6.</div>
+  </div>
+
+  <script>
+    // ============================================================
+    //  データベース
+    // ============================================================
+    const SCHEDULE_DB = {
+      "2026-03-02": [{s:"朝の会",i:"🌅"},{s:"生活単元学習",i:"💝"},{s:"体育",i:"🏃"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-03": [{s:"朝の会",i:"🌅"},{s:"課題学習",i:"✏️"},{s:"身体の動き",i:"🤸"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-04": [{s:"朝の会",i:"🌅"},{s:"音楽",i:"🎵"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-05": [{s:"朝の会",i:"🌅"},{s:"身体の動き",i:"🤸"},{s:"体育",i:"🏃"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-06": [{s:"朝の会",i:"🌅"},{s:"日生／道徳",i:"🕊️"},{s:"学年集会",i:"👥"},{s:"図工",i:"🎨"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-09": [{s:"朝の会",i:"🌅"},{s:"生活単元学習",i:"💝"},{s:"体育",i:"🏃"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-10": [{s:"朝の会",i:"🌅"},{s:"課題学習",i:"✏️"},{s:"身体の動き",i:"🤸"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-11": [{s:"朝の会",i:"🌅"},{s:"音楽",i:"🎵"},{s:"身体の動き",i:"🤸"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-12": [{s:"朝の会",i:"🌅"},{s:"卒業式予行練習",i:"🎓"},{s:"身体の動き",i:"🤸"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-13": [{s:"朝の会",i:"🌅"},{s:"学年集会",i:"👥"},{s:"図工",i:"🎨"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-16": [{s:"朝の会",i:"🌅"},{s:"生活単元学習",i:"💝"},{s:"体育",i:"🏃"},{s:"身体の動き",i:"🤸"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-17": [{s:"朝の会",i:"🌅"},{s:"卒業式",i:"🎓"},{s:"帰りの会",i:"🏠"},{s:"11:50下校",i:"📢"}],
+      "2026-03-18": [{s:"朝の会",i:"🌅"},{s:"音楽",i:"🎵"},{s:"身体の動き",i:"🤸"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-19": [{s:"朝の会",i:"🌅"},{s:"身体の動き",i:"🤸"},{s:"生活単元学習",i:"💝"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-23": [{s:"朝の会",i:"🌅"},{s:"生活単元学習",i:"💝"},{s:"体育",i:"🏃"},{s:"給食",i:"🍱"},{s:"午後のお勉強",i:"📖"},{s:"帰りの会",i:"🏠"}],
+      "2026-03-24": [{s:"朝の会",i:"🌅"},{s:"修了式",i:"📜"},{s:"離任式",i:"👋"},{s:"帰りの会",i:"🏠"},{s:"11:50下校",i:"📢"}]
+    };
+
+    const MENU_DB = {
+      2: ['ごはん', '麻婆豆腐', 'ごまだれサラダ', 'スープ', 'メロンゼリー'],
+      3: ['ちらしずし', '鶏のてりやき', '切り干し大根の煮物', '菜の花のおひたし', 'あさりのおつゆ', 'ひなあられ'],
+      4: ['食パン', 'ミートローフ', 'フレンチポテト', '人参の甘煮', '野菜のコンソメ煮', '春雨スープ', 'プリン', '苺ジャム'],
+      5: ['鹿児島料理 豚味噌さいこん', 'がね', 'さつま汁', 'かんかん'],
+      6: ['ごはん', 'コロッケ', '蒸しきゃべつ', '隠元ソテー', '春雨の炒め物', '味噌汁', 'イチゴゼリー'],
+      9: ['ごはん', '生揚げのはさみ煮', '野菜炒め', '中華風春雨サラダ', 'にらと卵のおつゆ', 'りんご'],
+      10: ['ごはん', 'きゃべつメンチカツ', '蒸し野菜添え', '炒り豆腐', 'おつゆ', 'あんみつ風デザート'],
+      11: ['スパゲッティーミートソース', 'わかめサラダ', '豆腐と野菜のスープ', 'アップルパイ'],
+      12: ['ごはん', '鯖の甘露煮風', 'ひじきの煮物', '野菜炒め', '味噌汁', 'オレンジ'],
+      13: ['高3リクエスト 鶏のから揚げ', 'いそべあえ', 'ポテトサラダ', '豚汁', 'チョコケーキ'],
+      16: ['赤飯', 'ナゲットとエビフライ', '春雨サラダ', '付け合わせ野菜', 'おつゆ', 'アップルカスタード'],
+      18: ['食パン', 'いかの更紗揚げ', 'もやしのサラダ', '大根のコンソメ煮', 'はんぺんスープ', 'オレンジ', 'リンゴジャム'],
+      19: ['ドライカレー', 'ツナサラダ', 'スープ', 'フルーツゼリー', 'ミルメーク'],
+      23: ['ごはん', '落とし揚げ', '高野豆腐の煮物', 'からしあえ', '卵スープ', 'オレンジ']
+    };
+
+    let currentPage = 1;
+    const today = new Date();
+    const weekDays = ['日','月','火','水','木','金','土'];
+    let currentSpeechText = '';
+
+    // WMO天気コード
+    function getWeatherInfo(code) {
+      const map = {
+        0:{emoji:'☀️',label:'快晴',desc:'雲ひとつない青空です。日差しが強くなりそうですね！'},
+        1:{emoji:'🌤️',label:'ほぼ晴れ',desc:'ほとんど晴れています。気持ちのいい一日になりそうです。'},
+        2:{emoji:'⛅',label:'晴れ時々曇り',desc:'晴れと曇りが交互にやってきます。'},
+        3:{emoji:'☁️',label:'曇り',desc:'雲が空を覆っています。'},
+        45:{emoji:'🌫️',label:'霧',desc:'見通しに注意しましょう。'},
+        51:{emoji:'🌦️',label:'霧雨',desc:'細かい雨が降っています。'},
+        61:{emoji:'🌧️',label:'小雨',desc:'少し雨が降っています。傘を使いましょう。'},
+        63:{emoji:'🌧️',label:'雨',desc:'雨が降っています。しっかり雨具を準備してください。'},
+        71:{emoji:'❄️',label:'小雪',desc:'雪が降っています。足元に注意。'},
+        80:{emoji:'🌦️',label:'にわか雨',desc:'急な雨に気をつけましょう。'},
+        95:{emoji:'⛈️',label:'雷雨',desc:'雷に注意してください。'}
+      };
+      return map[code] || {emoji:'🌈',label:'天気',desc:'空の様子に注意しましょう。'};
+    }
+
+    // 天気取得
+    async function fetchWeather() {
+      const btn = document.getElementById('fetchBtn');
+      const loading = document.getElementById('wLoading');
+      const content = document.getElementById('wWeatherContent');
+      const errorMsg = document.getElementById('wErrorMsg');
+      const speakBtn = document.getElementById('wSpeakBtn');
+
+      btn.disabled = true;
+      errorMsg.style.display = 'none';
+      content.style.display = 'none';
+      speakBtn.style.display = 'none';
+      loading.style.display = 'flex';
+
+      try {
+        const lat = 35.6285, lon = 140.1512;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max&timezone=Asia%2FTokyo&forecast_days=1`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const d = data.daily;
+        const info = getWeatherInfo(d.weathercode[0]);
+
+        document.getElementById('weatherArt').textContent = info.emoji;
+        document.getElementById('weatherLabel').textContent = info.label;
+        document.getElementById('weatherDesc').textContent = info.desc;
+        document.getElementById('tempMax').textContent = `${Math.round(d.temperature_2m_max[0])}°C`;
+        document.getElementById('tempMin').textContent = `${Math.round(d.temperature_2m_min[0])}°C`;
+        document.getElementById('precip').textContent = `${d.precipitation_probability_max[0]}%`;
+        document.getElementById('wind').textContent = `${Math.round(d.windspeed_10m_max[0])}m/s`;
+
+        currentSpeechText = `${today.getMonth()+1}月${today.getDate()}日の加曽利町のお天気は、${info.label}です。${info.desc} 最高気温は${Math.round(d.temperature_2m_max[0])}度、最低気温は${Math.round(d.temperature_2m_min[0])}度です。`;
+
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        speakBtn.style.display = 'inline-block';
+        btn.textContent = '🔄 更新する';
+        btn.disabled = false;
+        speakWeather();
+      } catch(e) {
+        loading.style.display = 'none';
+        errorMsg.textContent = '⚠️ 天気を取得できませんでした。';
+        errorMsg.style.display = 'block';
+        btn.disabled = false;
+      }
+    }
+
+    function speakWeather() {
+      if (!currentSpeechText) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(currentSpeechText);
+      u.lang = 'ja-JP';
+      window.speechSynthesis.speak(u);
+    }
+
+    // 共通
+    window.onload = () => {
+      document.getElementById('dateDisplay').textContent = `${today.getMonth()+1}月${today.getDate()}日（${weekDays[today.getDay()]}）`;
+      renderScheduleStatic();
+      showPage(1);
+    };
+
+    function showPage(num) {
+      currentPage = num;
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page' + num).classList.add('active');
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-t-' + num).forEach(t => t.classList.add('active'));
+      window.speechSynthesis.cancel();
+    }
+
+    function renderScheduleStatic() {
+      const today_str = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+      const items = SCHEDULE_DB[today_str] || [{s:"予定はありません", i:"🌸"}];
+      const container = document.getElementById('scheduleList');
+      container.innerHTML = "";
+      items.forEach((item, idx) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.id = `sch-card-${idx}`;
+        card.innerHTML = `<span style="font-size:2rem">${item.i}</span><br>${item.s}`;
+        container.appendChild(card);
+      });
+    }
+
+    async function revealSchedule() {
+      const btn = document.getElementById('btnRevealSchedule');
+      btn.disabled = true;
+      const today_str = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+      const items = SCHEDULE_DB[today_str];
+      if (!items) { speak("今日の予定はありません。"); btn.disabled = false; return; }
+      speak("今日の予定を発表します。");
+      await new Promise(r => setTimeout(r, 2000));
+      for (let i = 0; i < items.length; i++) {
+        const card = document.getElementById(`sch-card-${i}`);
+        card.classList.add('speaking');
+        await speakPromise(items[i].s + "。");
+        card.classList.remove('speaking');
+        card.classList.add('done');
+      }
+      speak("以上です。");
+      btn.disabled = false;
+    }
+
+    async function revealLunch() {
+      const btn = document.getElementById('btnRevealLunch');
+      btn.disabled = true;
+      const day = today.getDate();
+      const menu = MENU_DB[day];
+      const container = document.getElementById('menuContent');
+      container.innerHTML = "";
+      if (!menu) { speak("今日の給食はありません。"); btn.disabled = false; return; }
+      speak("今日の給食を発表します！");
+      await new Promise(r => setTimeout(r, 2000));
+      for (const item of menu) {
+        const div = document.createElement('div');
+        div.className = 'menu-item';
+        div.innerHTML = `✨ ${item}`;
+        container.appendChild(div);
+        await speakPromise(item);
+      }
+      speak("美味しく食べましょう！");
+      btn.disabled = false;
+    }
+
+    function speakPromise(text) {
+      return new Promise((resolve) => {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ja-JP';
+        u.onend = () => resolve();
+        window.speechSynthesis.speak(u);
+      });
+    }
+
+    function speak(text) {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ja-JP';
+      window.speechSynthesis.speak(u);
+    }
+
+    function playSong()   { const a = document.getElementById('audioSong'); a.currentTime = 0; a.play(); }
+    function playYobina() { const a = document.getElementById('audioYobina'); a.currentTime = 0; a.play(); }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'p') {
+        if (currentPage === 1) playSong();
+        if (currentPage === 2) playYobina();
+        if (currentPage === 3) fetchWeather(); 
+        if (currentPage === 4) revealSchedule();
+        if (currentPage === 5) revealLunch();
+        if (currentPage === 6) speak('これで終わります。れい！');
+      }
+    });
+  </script>
+</body>
+</html>
