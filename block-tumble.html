@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>積み木崩し</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a0a00;
+    overflow: hidden;
+    font-family: 'Georgia', serif;
+    touch-action: none;
+    user-select: none;
+  }
+  canvas { display: block; }
+  #ui {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #f5c842;
+    font-size: 14px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    opacity: 0.7;
+    pointer-events: none;
+    text-shadow: 0 0 10px #f5c84288;
+  }
+  #score {
+    position: fixed;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 28px;
+    font-weight: bold;
+    pointer-events: none;
+    text-shadow: 0 0 15px #f5c842;
+  }
+</style>
+</head>
+<body>
+<div id="ui">タップして崩せ！</div>
+<div id="score">0</div>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+let score = 0;
+const scoreEl = document.getElementById('score');
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- Audio ---
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function getAudio() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+  return audioCtx;
+}
+
+function playHit(freq = 200, type = 'square') {
+  const ac = getAudio();
+  const o = ac.createOscillator();
+  const g = ac.createGain();
+  o.connect(g); g.connect(ac.destination);
+  o.type = type;
+  o.frequency.setValueAtTime(freq, ac.currentTime);
+  o.frequency.exponentialRampToValueAtTime(freq * 0.3, ac.currentTime + 0.3);
+  g.gain.setValueAtTime(0.3, ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.4);
+  o.start(); o.stop(ac.currentTime + 0.4);
+}
+
+function playCollapse(i) {
+  setTimeout(() => playHit(300 - i * 30, 'sawtooth'), i * 60);
+}
+
+// --- Block Colors ---
+const COLORS = [
+  ['#e74c3c','#c0392b'],
+  ['#e67e22','#d35400'],
+  ['#f1c40f','#f39c12'],
+  ['#2ecc71','#27ae60'],
+  ['#3498db','#2980b9'],
+  ['#9b59b6','#8e44ad'],
+  ['#1abc9c','#16a085'],
+  ['#e91e63','#c2185b'],
+];
+
+// --- Tower ---
+class Block {
+  constructor(x, y, w, h, colorIdx) {
+    this.x = x; this.y = y;
+    this.w = w; this.h = h;
+    this.colorIdx = colorIdx % COLORS.length;
+    this.vx = 0; this.vy = 0;
+    this.rot = 0; this.vrot = 0;
+    this.falling = false;
+    this.alpha = 1;
+    this.dead = false;
+  }
+  draw() {
+    ctx.save();
+    ctx.globalAlpha = this.alpha;
+    ctx.translate(this.x + this.w/2, this.y + this.h/2);
+    ctx.rotate(this.rot);
+    const [c1, c2] = COLORS[this.colorIdx];
+    // shadow
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 4;
+    // gradient fill
+    const grd = ctx.createLinearGradient(-this.w/2, -this.h/2, this.w/2, this.h/2);
+    grd.addColorStop(0, c1);
+    grd.addColorStop(1, c2);
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.roundRect(-this.w/2, -this.h/2, this.w, this.h, 4);
+    ctx.fill();
+    // shine
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.beginPath();
+    ctx.roundRect(-this.w/2, -this.h/2, this.w, this.h*0.4, 4);
+    ctx.fill();
+    // outline
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(-this.w/2, -this.h/2, this.w, this.h, 4);
+    ctx.stroke();
+    ctx.restore();
+  }
+  update() {
+    if (!this.falling) return;
+    this.vy += 0.6;
+    this.x += this.vx;
+    this.y += this.vy;
+    this.rot += this.vrot;
+    if (this.y > H + 100) {
+      this.dead = true;
+    }
+    if (this.alpha < 1 && this.falling) {
+      // keep full alpha while falling
+    }
+  }
+  contains(px, py) {
+    return px >= this.x && px <= this.x + this.w &&
+           py >= this.y && py <= this.y + this.h;
+  }
+}
+
+// --- Particles ---
+class Particle {
+  constructor(x, y, color) {
+    this.x = x; this.y = y;
+    this.vx = (Math.random() - 0.5) * 8;
+    this.vy = (Math.random() - 0.8) * 8;
+    this.color = color;
+    this.life = 1;
+    this.size = 3 + Math.random() * 5;
+  }
+  update() {
+    this.vy += 0.3;
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life -= 0.03;
+  }
+  draw() {
+    ctx.save();
+    ctx.globalAlpha = this.life;
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+let towers = [];
+let particles = [];
+
+function makeTower(cx) {
+  const blocks = [];
+  const bw = 60 + Math.random() * 40;
+  const bh = 22 + Math.random() * 10;
+  const count = 5 + Math.floor(Math.random() * 6);
+  const baseY = H - 60;
+  const colorStart = Math.floor(Math.random() * COLORS.length);
+  for (let i = 0; i < count; i++) {
+    const wobble = (Math.random() - 0.5) * 20 * (i / count);
+    const x = cx - bw / 2 + wobble;
+    const y = baseY - (i + 1) * (bh + 2);
+    blocks.push(new Block(x, y, bw, bh, colorStart + i));
+  }
+  return { blocks, cx, spawning: true, spawnTimer: 0, alive: true };
+}
+
+function spawnTowers() {
+  towers = [];
+  const count = 2 + Math.floor(Math.random() * 3);
+  const margin = 80;
+  const spacing = (W - margin*2) / count;
+  for (let i = 0; i < count; i++) {
+    const cx = margin + spacing * i + spacing / 2 + (Math.random()-0.5)*30;
+    towers.push(makeTower(Math.max(80, Math.min(W-80, cx))));
+  }
+}
+
+function collapseTower(tower, hitBlockIdx) {
+  if (!tower.alive) return;
+  tower.alive = false;
+  const n = tower.blocks.length;
+  for (let i = 0; i < n; i++) {
+    const b = tower.blocks[i];
+    if (!b.falling) {
+      const delay = Math.abs(i - hitBlockIdx) * 80;
+      setTimeout(() => {
+        b.falling = true;
+        const dir = (Math.random() > 0.5 ? 1 : -1);
+        b.vx = dir * (2 + Math.random() * 4) * ((i - hitBlockIdx + 1) * 0.3);
+        b.vy = -2 - Math.random() * 3;
+        b.vrot = (Math.random() - 0.5) * 0.2;
+        // particles
+        for (let p = 0; p < 8; p++) {
+          particles.push(new Particle(
+            b.x + b.w/2, b.y + b.h/2,
+            COLORS[b.colorIdx][0]
+          ));
+        }
+        playCollapse(i);
+        score++;
+        scoreEl.textContent = score;
+        flashScore();
+      }, delay);
+    }
+  }
+  // schedule new tower
+  setTimeout(() => {
+    // find a spot away from existing towers
+    let cx = 80 + Math.random() * (W - 160);
+    towers.push(makeTower(cx));
+    const newT = towers[towers.length - 1];
+    newT.spawnAnim = true;
+    newT.spawnTimer = 0;
+  }, 2000 + Math.random() * 1000);
+}
+
+let scoreFlash = 0;
+function flashScore() {
+  scoreFlash = 1;
+}
+
+function handleTap(px, py) {
+  for (const tower of towers) {
+    if (!tower.alive) continue;
+    for (let i = 0; i < tower.blocks.length; i++) {
+      const b = tower.blocks[i];
+      if (!b.falling && b.contains(px, py)) {
+        collapseTower(tower, i);
+        return;
+      }
+    }
+  }
+}
+
+canvas.addEventListener('pointerdown', e => {
+  handleTap(e.clientX, e.clientY);
+});
+
+// --- Ground ---
+function drawGround() {
+  const grd = ctx.createLinearGradient(0, H-60, 0, H);
+  grd.addColorStop(0, '#3d2000');
+  grd.addColorStop(1, '#1a0a00');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, H-60, W, 60);
+  // grain line
+  ctx.strokeStyle = '#f5c84233';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, H-60); ctx.lineTo(W, H-60); ctx.stroke();
+}
+
+// --- Background ---
+function drawBg() {
+  ctx.fillStyle = '#1a0a00';
+  ctx.fillRect(0, 0, W, H);
+  // stars
+  ctx.fillStyle = 'rgba(255,220,100,0.3)';
+  for (let i = 0; i < 30; i++) {
+    const sx = (i * 137.5) % W;
+    const sy = (i * 97.3) % (H * 0.7);
+    ctx.beginPath();
+    ctx.arc(sx, sy, 1, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+// --- Spawn animation (blocks drop from above) ---
+function updateSpawnAnim(tower) {
+  if (!tower.spawnAnim) return;
+  tower.spawnTimer += 1;
+  const n = tower.blocks.length;
+  const progress = Math.min(tower.spawnTimer / (n * 8 + 20), 1);
+  const targetBlocks = Math.floor(progress * n);
+  // just reveal blocks with a drop effect
+  if (tower.spawnTimer > n * 8 + 20) {
+    tower.spawnAnim = false;
+  }
+}
+
+// spawn timer for block reveal
+const blockRevealTimers = new Map();
+
+function drawTower(tower) {
+  if (tower.spawnAnim) {
+    const n = tower.blocks.length;
+    for (let i = 0; i < n; i++) {
+      const revealTime = i * 8;
+      const elapsed = tower.spawnTimer - revealTime;
+      if (elapsed < 0) continue;
+      const b = tower.blocks[i];
+      if (elapsed < 10) {
+        // bounce drop
+        const t = elapsed / 10;
+        const origY = b.y;
+        const bounce = Math.sin(t * Math.PI) * 15;
+        ctx.save();
+        ctx.translate(0, -bounce * (1 - t));
+        b.draw();
+        ctx.restore();
+      } else {
+        b.draw();
+      }
+    }
+  } else {
+    for (const b of tower.blocks) {
+      if (!b.dead) b.draw();
+    }
+  }
+}
+
+// --- Main loop ---
+spawnTowers();
+
+function loop() {
+  requestAnimationFrame(loop);
+  drawBg();
+  drawGround();
+
+  // update particles
+  particles = particles.filter(p => p.life > 0);
+  for (const p of particles) { p.update(); p.draw(); }
+
+  // update towers
+  for (const tower of towers) {
+    if (tower.spawnAnim) {
+      tower.spawnTimer++;
+      if (tower.spawnTimer > tower.blocks.length * 8 + 20) {
+        tower.spawnAnim = false;
+      }
+    }
+    for (const b of tower.blocks) b.update();
+    drawTower(tower);
+  }
+
+  // score flash
+  if (scoreFlash > 0) {
+    scoreFlash -= 0.05;
+    scoreEl.style.transform = `translateX(-50%) scale(${1 + scoreFlash * 0.5})`;
+    scoreEl.style.color = `hsl(${40 + scoreFlash * 20}, 100%, ${60 + scoreFlash * 20}%)`;
+  } else {
+    scoreEl.style.transform = 'translateX(-50%) scale(1)';
+    scoreEl.style.color = '#fff';
+  }
+
+  // remove fully dead towers (all blocks dead)
+  towers = towers.filter(t => {
+    if (!t.alive && t.blocks.every(b => b.dead)) return false;
+    return true;
+  });
+}
+
+loop();
+</script>
+</body>
+</html>
