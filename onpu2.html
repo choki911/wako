@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音符のキラキラ花火 - Musical Sparkle Fireworks</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            /* 深い夜空のグラデーション（画像なしでも雰囲気が出るように） */
+            background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
+            touch-action: none;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// 画面サイズ設定
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    createStars(); // リサイズ時に星を再生成
+}
+window.addEventListener('resize', resize);
+
+// Web Audio APIの初期化（ユーザー操作後に有効化）
+let audioCtx = null;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+// 音階データ（周波数）
+const scales = [
+    [261.63, 329.63, 392.00, 523.25], // ド・ミ・ソ・ド（C Maj）
+    [261.63, 293.66, 329.63, 349.23, 392.00], // ド・レ・ミ・ファ・ソ
+    [349.23, 440.00, 523.25, 659.25], // ファ・ラ・ド・ミ（F Maj7）
+    [392.00, 493.88, 587.33, 783.99]  // ソ・シ・レ・ソ（G7）
+];
+
+// 音を鳴らす関数（音色を少しキラキラさせる）
+function playMelody() {
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const melody = scales[Math.floor(Math.random() * scales.length)];
+    const now = audioCtx.currentTime;
+
+    melody.forEach((freq, index) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        // 三角波にして少し柔らかくキラキラした音にする
+        osc.type = 'triangle'; 
+        
+        // 高音の倍音を少し混ぜてキラキラ感を出す（簡易的）
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(freq * 2, now + index * 0.12); // 1オクターブ上
+
+        osc.frequency.setValueAtTime(freq, now + index * 0.12);
+        
+        gain.gain.setValueAtTime(0.3, now + index * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.12 + 0.8);
+        
+        gain2.gain.setValueAtTime(0.1, now + index * 0.12); // 倍音は弱く
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + index * 0.12 + 0.4);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        
+        osc.start(now + index * 0.12);
+        osc.stop(now + index * 0.12 + 0.8);
+        osc2.start(now + index * 0.12);
+        osc2.stop(now + index * 0.12 + 0.4);
+    });
+}
+
+// --- 背景の星空 ---
+let stars = [];
+function createStars() {
+    stars = [];
+    const numStars = Math.floor((canvas.width * canvas.height) / 5000); // 画面サイズに応じた数
+    for (let i = 0; i < numStars; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 1.5,
+            blinkSpeed: Math.random() * 0.05 + 0.01,
+            opacity: Math.random()
+        });
+    }
+}
+
+function drawStars() {
+    ctx.save();
+    stars.forEach(star => {
+        // まばたきさせる
+        star.opacity += star.blinkSpeed;
+        if (star.opacity > 1 || star.opacity < 0) {
+            star.blinkSpeed = -star.blinkSpeed;
+        }
+        ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0, star.opacity)})`;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.restore();
+}
+
+// --- キラキラ（スパークル）粒子クラス ---
+class Sparkle {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        // 音符より速く、細かく飛び散る
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 8 + 2; 
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.gravity = 0.05;
+        this.friction = 0.96;
+        this.size = Math.random() * 2 + 1;
+        this.opacity = 1;
+        this.decay = Math.random() * 0.02 + 0.015; // 消える速度
+    }
+
+    update() {
+        this.vx *= this.friction;
+        this.vy *= this.friction;
+        this.vy += this.gravity;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.opacity -= this.decay;
+    }
+
+    draw() {
+        if (this.opacity <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = this.opacity;
+        // 光の粒子として描画（グロー効果は後述のアニメーションループで付与）
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+// --- 音符クラス（前回をベースに調整） ---
+class Note {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        // 彩度と明度を上げて夜空に映えるように
+        this.fillColor = `hsl(${color}, 80%, 70%)`;
+        this.glowColor = `hsl(${color}, 100%, 80%)`;
+        
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 4 + 1;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.gravity = 0.08;
+        this.friction = 0.97;
+        
+        this.size = Math.random() * 25 + 25; // 電子黒板向けに少し大きく
+        this.opacity = 1;
+        this.decay = 0.01;
+        
+        this.noteSymbol = ['♪', '♫', '♬', '♩'][Math.floor(Math.random() * 4)];
+        this.rotation = Math.random() * Math.PI * 0.2 - 0.1; // 少し傾ける
+    }
+
+    update() {
+        this.vx *= this.friction;
+        this.vy *= this.friction;
+        this.vy += this.gravity;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.opacity -= this.decay;
+    }
+
+    draw() {
+        if (this.opacity <= 0) return;
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        ctx.globalAlpha = this.opacity;
+        
+        // 音符自体に強いグロー（ネオン）効果
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = this.glowColor;
+        ctx.fillStyle = this.fillColor;
+        
+        ctx.font = `bold ${this.size}px serif`; // セリフ体の方が見栄えが良い
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.noteSymbol, 0, 0);
+        ctx.restore();
+    }
+}
+
+let notes = [];
+let sparkles = [];
+
+function createFirework(x, y) {
+    initAudio(); // 初回クリック時にオーディオを初期化
+    playMelody();
+    
+    // ベースとなる色をランダムに決定
+    const hue = Math.random() * 360;
+    
+    // 音符を生成（数は少し減らして存在感を出す）
+    for (let i = 0; i < 8; i++) {
+        notes.push(new Note(x, y, hue));
+    }
+    // キラキラ粒子を大量に生成
+    for (let i = 0; i < 30; i++) {
+        // 色をベースカラーの周辺で少しバラつかせる
+        const sparkleHue = hue + (Math.random() - 0.5) * 30;
+        sparkles.push(new Sparkle(x, y, `hsl(${sparkleHue}, 90%, 80%)`));
+    }
+}
+
+// タッチ・クリックイベント（pointerdown）
+canvas.addEventListener('pointerdown', (e) => {
+    // マルチタッチに対応するため、イベントごとの位置を取得
+    if (e.isPrimary === undefined || e.isPrimary || e.pointerType === 'touch') {
+        createFirework(e.clientX, e.clientY);
+    }
+});
+
+// アニメーションループ
+function animate() {
+    // 画面全体を少し暗い色で塗りつぶす（軌跡を残すため完全な黒にしない）
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // 1. まず星を描画
+    drawStars();
+    
+    // 合成モードを「スクリーン」にして光を表現
+    ctx.globalCompositeOperation = 'lighter';
+    
+    // 2. キラキラを描画・更新
+    sparkles = sparkles.filter(s => s.opacity > 0);
+    sparkles.forEach(s => {
+        s.update();
+        // 小さなキラキラにも軽いグロー効果
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = s.color;
+        s.draw();
+    });
+    
+    // 3. 音符を描画・更新
+    notes = notes.filter(n => n.opacity > 0);
+    notes.forEach(n => {
+        n.update();
+        n.draw();
+    });
+    
+    // 合成モードを元に戻す
+    ctx.globalCompositeOperation = 'source-over';
+    
+    requestAnimationFrame(animate);
+}
+
+// 初期化
+resize();
+animate();
+
+</script>
+</body>
+</html>
