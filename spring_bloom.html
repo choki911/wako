@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>春の庭 — Spring Garden</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      background: radial-gradient(ellipse at 30% 70%, #3a9e5c 0%, #2d8248 30%, #1e6b39 60%, #155429 100%);
+      cursor: crosshair;
+    }
+
+    /* 草むら感の背景テクスチャ */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        radial-gradient(ellipse 2px 8px at 10% 90%, rgba(255,255,255,0.08) 0%, transparent 100%),
+        radial-gradient(ellipse 2px 8px at 25% 95%, rgba(255,255,255,0.06) 0%, transparent 100%),
+        radial-gradient(ellipse 2px 6px at 40% 92%, rgba(255,255,255,0.07) 0%, transparent 100%),
+        radial-gradient(ellipse 2px 9px at 55% 96%, rgba(255,255,255,0.05) 0%, transparent 100%),
+        radial-gradient(ellipse 2px 7px at 70% 91%, rgba(255,255,255,0.08) 0%, transparent 100%),
+        radial-gradient(ellipse 2px 6px at 85% 94%, rgba(255,255,255,0.06) 0%, transparent 100%),
+        radial-gradient(ellipse 2px 8px at 92% 97%, rgba(255,255,255,0.07) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* 光の揺らぎ */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse 60% 40% at 70% 20%, rgba(255,240,150,0.12) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      animation: lightShift 8s ease-in-out infinite alternate;
+    }
+
+    @keyframes lightShift {
+      0%  { opacity: 0.6; transform: scale(1); }
+      100%{ opacity: 1;   transform: scale(1.1) translate(5%, -3%); }
+    }
+
+    #canvas-layer {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ガイドテキスト */
+    #guide {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-size: clamp(1rem, 3vw, 1.6rem);
+      color: rgba(255,255,255,0.92);
+      text-shadow: 0 2px 12px rgba(0,0,0,0.4), 0 0 30px rgba(255,220,100,0.3);
+      pointer-events: none;
+      z-index: 10;
+      text-align: center;
+      line-height: 1.8;
+      transition: opacity 0.8s ease;
+      letter-spacing: 0.05em;
+    }
+    #guide span { display: block; font-size: 2.5em; animation: bounce 1.5s ease-in-out infinite; }
+    @keyframes bounce {
+      0%,100%{ transform: translateY(0); }
+      50%    { transform: translateY(-8px); }
+    }
+
+    /* パーティクル・花コンテナ */
+    .flower-el {
+      position: fixed;
+      pointer-events: none;
+      z-index: 5;
+      transform-origin: bottom center;
+    }
+    .flower-el svg {
+      overflow: visible;
+    }
+
+    /* 花びら咲くアニメ */
+    @keyframes petalBloom {
+      0%   { transform: scale(0) rotate(var(--rStart,0deg)); opacity: 0; }
+      40%  { transform: scale(1.15) rotate(var(--rMid,10deg)); opacity: 1; }
+      70%  { transform: scale(1) rotate(var(--rEnd,5deg)); opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: scale(0.9) rotate(var(--rEnd,5deg)); opacity: 0; }
+    }
+
+    @keyframes flowerDrop {
+      0%   { transform: translateY(-20px) scale(0); opacity: 0; }
+      20%  { transform: translateY(4px) scale(1.08); opacity: 1; }
+      40%  { transform: translateY(-2px) scale(1); opacity: 1; }
+      85%  { opacity: 1; }
+      100% { transform: translateY(8px) scale(0.85); opacity: 0; }
+    }
+
+    /* 蝶々 */
+    .butterfly-el {
+      position: fixed;
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    @keyframes butterflyFly {
+      0%   { opacity: 0; transform: translate(0,0) scale(0.5) rotate(var(--rot,0deg)); }
+      8%   { opacity: 1; transform: translate(10px,-15px) scale(1) rotate(var(--rot,0deg)); }
+      30%  { transform: translate(var(--mx1,40px), var(--my1,-80px)) scale(1.05) rotate(calc(var(--rot,0deg) + 5deg)); }
+      60%  { transform: translate(var(--mx2,-20px), var(--my2,-200px)) scale(1) rotate(calc(var(--rot,0deg) - 8deg)); }
+      90%  { opacity: 0.7; transform: translate(var(--mx3,60px), var(--my3,-380px)) scale(0.8) rotate(var(--rot,0deg)); }
+      100% { opacity: 0; transform: translate(var(--mx4,80px), var(--my4,-520px)) scale(0.5); }
+    }
+
+    @keyframes wingFlapL {
+      0%,100%{ transform: rotateY(10deg) scaleX(1); }
+      50%   { transform: rotateY(65deg) scaleX(0.95); }
+    }
+    @keyframes wingFlapR {
+      0%,100%{ transform: rotateY(-10deg) scaleX(1); }
+      50%   { transform: rotateY(-65deg) scaleX(0.95); }
+    }
+
+    /* キラキラパーティクル */
+    @keyframes sparkle {
+      0%   { transform: translate(0,0) scale(0); opacity: 1; }
+      60%  { opacity: 1; }
+      100% { transform: translate(var(--sx,20px), var(--sy,-40px)) scale(1); opacity: 0; }
+    }
+
+    /* 花粉ぽわぽわ */
+    @keyframes pollenFloat {
+      0%   { transform: translate(0,0) scale(1); opacity: 0.9; }
+      100% { transform: translate(var(--px,10px), var(--py,-60px)) scale(0); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="guide">
+  <span>🌸</span>
+  タップして花を咲かせよう
+</div>
+
+<script>
+// ============================================================
+// Audio Engine — 楽しく豊かな音
+// ============================================================
+let audioCtx = null;
+
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+// ペンタトニック音階 (C major pentatonic, 複数オクターブ)
+const PENTA = [261.63, 293.66, 329.63, 392.00, 440.00,
+               523.25, 587.33, 659.25, 783.99, 880.00,
+               1046.50, 1174.66];
+
+function pickNote(idx) {
+  return PENTA[idx % PENTA.length];
+}
+
+// 音色1: キラキラマリンバ風
+function playMarimba(freq, t, vol=0.18) {
+  const ctx = getAudio();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(freq, t);
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.98, t + 0.15);
+
+  filter.type = 'bandpass';
+  filter.frequency.value = freq * 2;
+  filter.Q.value = 1.5;
+
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(vol, t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+
+  osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+  osc.start(t); osc.stop(t + 0.6);
+}
+
+// 音色2: 鐘のような倍音
+function playBell(freq, t, vol=0.12) {
+  const ctx = getAudio();
+  [1, 2.756, 5.404].forEach((ratio, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq * ratio;
+    const v = vol / (i + 1);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(v, t + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.2 - i * 0.2);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 1.3);
+  });
+}
+
+// 音色3: 柔らかいシンセコード
+function playChime(freq, t, vol=0.08) {
+  const ctx = getAudio();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, t);
+  osc.frequency.linearRampToValueAtTime(freq * 1.003, t + 0.3);
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(vol, t + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(t); osc.stop(t + 1.0);
+}
+
+// ランダムアルペジオ コード
+const CHORDS = [
+  [0,2,4],   // C-E-G
+  [0,2,6],   // C-E-A
+  [1,3,5],   // D-F-A
+  [2,4,7],   // E-G-B
+];
+
+function playFlowerSound(flowerIdx) {
+  const ctx = getAudio();
+  const t = ctx.currentTime;
+  const chord = CHORDS[flowerIdx % CHORDS.length];
+  const baseOct = Math.floor(Math.random() * 2); // 0 or 1 for octave variation
+
+  chord.forEach((noteIdx, i) => {
+    const freq = pickNote(noteIdx + baseOct * 5);
+    const delay = i * 0.07;
+    playMarimba(freq, t + delay, 0.15 + Math.random() * 0.05);
+    playBell(freq, t + delay, 0.07);
+  });
+
+  // 高音のキラキラ
+  const sparkFreq = pickNote(8 + Math.floor(Math.random() * 4));
+  playChime(sparkFreq, t + 0.18, 0.06);
+  playChime(sparkFreq * 1.5, t + 0.28, 0.04);
+}
+
+function playButterflySound() {
+  const ctx = getAudio();
+  const t = ctx.currentTime;
+  // 優しい風鈴のような音
+  [659.25, 783.99, 1046.50].forEach((f, i) => {
+    playChime(f, t + i * 0.12, 0.05);
+  });
+}
+
+// ============================================================
+// SVG 花 定義
+// ============================================================
+
+// 色パレット (花の種類ごと)
+const FLOWER_PALETTES = {
+  tulip:     [
+    { petal:'#FF6B8A', petal2:'#FF3D6B', center:'#FFE066', stem:'#4CAF50' },
+    { petal:'#FF9E4F', petal2:'#FF6B1A', center:'#FFF176', stem:'#4CAF50' },
+    { petal:'#CE93D8', petal2:'#AB47BC', center:'#FFF176', stem:'#4CAF50' },
+    { petal:'#F48FB1', petal2:'#F06292', center:'#FFE066', stem:'#4CAF50' },
+    { petal:'#FFEE58', petal2:'#FDD835', center:'#FF8A65', stem:'#4CAF50' },
+  ],
+  dandelion: [
+    { petal:'#FFD600', petal2:'#FFAB00', center:'#FF6F00', stem:'#558B2F' },
+    { petal:'#FFEE58', petal2:'#FFD600', center:'#FF8F00', stem:'#558B2F' },
+  ],
+  sakura:    [
+    { petal:'#FFB7C5', petal2:'#FF8FAB', center:'#FF4081', stem:'#6D4C41' },
+    { petal:'#F8BBD0', petal2:'#F48FB1', center:'#E91E63', stem:'#6D4C41' },
+    { petal:'#FCE4EC', petal2:'#F8BBD0', center:'#FF80AB', stem:'#6D4C41' },
+  ],
+  daisy:     [
+    { petal:'#FFFFFF', petal2:'#E0E0E0', center:'#FFD600', stem:'#558B2F' },
+    { petal:'#B3E5FC', petal2:'#81D4FA', center:'#FF8F00', stem:'#558B2F' },
+    { petal:'#F8BBD0', petal2:'#F48FB1', center:'#FFD600', stem:'#558B2F' },
+  ],
+  rose:      [
+    { petal:'#EF5350', petal2:'#B71C1C', center:'#FF1744', stem:'#2E7D32' },
+    { petal:'#EC407A', petal2:'#880E4F', center:'#FF4081', stem:'#2E7D32' },
+    { petal:'#FF7043', petal2:'#BF360C', center:'#FF3D00', stem:'#2E7D32' },
+  ],
+  violet:    [
+    { petal:'#7E57C2', petal2:'#4527A0', center:'#FFF176', stem:'#388E3C' },
+    { petal:'#AB47BC', petal2:'#6A1B9A', center:'#FFF9C4', stem:'#388E3C' },
+  ],
+};
+
+const FLOWER_TYPES = ['tulip','dandelion','sakura','daisy','rose','violet'];
+
+// チューリップ SVG 生成
+function makeTulipSVG(pal, size=90) {
+  const s = size;
+  return `<svg width="${s}" height="${s*1.4}" viewBox="0 0 90 126">
+    <!-- 茎 -->
+    <path d="M45 126 Q44 100 45 80" stroke="${pal.stem}" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <!-- 葉 -->
+    <path d="M44 110 Q25 90 22 70 Q35 80 45 85" fill="${pal.stem}" opacity="0.85"/>
+    <path d="M46 105 Q65 85 68 65 Q55 76 45 82" fill="${pal.stem}" opacity="0.75"/>
+    <!-- 花びら左外 -->
+    <ellipse cx="28" cy="50" rx="16" ry="30" fill="${pal.petal}" transform="rotate(-18,28,50)" opacity="0.95"/>
+    <!-- 花びら右外 -->
+    <ellipse cx="62" cy="50" rx="16" ry="30" fill="${pal.petal}" transform="rotate(18,62,50)" opacity="0.95"/>
+    <!-- 花びら中央 -->
+    <ellipse cx="45" cy="42" rx="18" ry="35" fill="${pal.petal2}" opacity="0.9"/>
+    <!-- 内側ハイライト -->
+    <ellipse cx="38" cy="40" rx="7" ry="18" fill="${pal.petal}" opacity="0.45" transform="rotate(-8,38,40)"/>
+    <ellipse cx="52" cy="40" rx="7" ry="18" fill="${pal.petal}" opacity="0.45" transform="rotate(8,52,40)"/>
+    <!-- 雄しべ -->
+    <circle cx="45" cy="28" r="5" fill="${pal.center}" opacity="0.9"/>
+    <circle cx="37" cy="32" r="4" fill="${pal.center}" opacity="0.8"/>
+    <circle cx="53" cy="32" r="4" fill="${pal.center}" opacity="0.8"/>
+  </svg>`;
+}
+
+// タンポポ SVG 生成
+function makeDandelionSVG(pal, size=90) {
+  const petals = 24;
+  let paths = '';
+  for (let i = 0; i < petals; i++) {
+    const angle = (i / petals) * 360;
+    const len = 22 + Math.sin(i * 1.3) * 4;
+    paths += `<line x1="45" y1="45" x2="${45 + Math.cos(angle*Math.PI/180)*len}" y2="${45 + Math.sin(angle*Math.PI/180)*len}"
+      stroke="${pal.petal}" stroke-width="2.5" stroke-linecap="round" opacity="${0.7+Math.random()*0.3}"/>`;
+    // 花弁先端の小さい丸
+    paths += `<circle cx="${45 + Math.cos(angle*Math.PI/180)*(len+1)}" cy="${45 + Math.sin(angle*Math.PI/180)*(len+1)}"
+      r="3" fill="${pal.petal2}" opacity="0.85"/>`;
+  }
+  return `<svg width="${size}" height="${size*1.35}" viewBox="0 0 90 122">
+    <path d="M45 122 Q44 95 45 70" stroke="${pal.stem}" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M44 108 Q28 88 26 70 Q38 82 45 72" fill="${pal.stem}" opacity="0.8"/>
+    <path d="M46 102 Q62 82 64 64 Q53 78 45 70" fill="${pal.stem}" opacity="0.7"/>
+    ${paths}
+    <!-- 中心 -->
+    <circle cx="45" cy="45" r="12" fill="${pal.petal2}" opacity="0.95"/>
+    <circle cx="45" cy="45" r="8" fill="${pal.center}" opacity="0.9"/>
+    <circle cx="45" cy="45" r="4" fill="${pal.petal}" opacity="0.8"/>
+  </svg>`;
+}
+
+// 桜 SVG 生成
+function makeSakuraSVG(pal, size=90) {
+  const petalPaths = [];
+  for (let i = 0; i < 5; i++) {
+    const a = (i/5)*360 - 90;
+    const r = a * Math.PI / 180;
+    const cx = 45 + Math.cos(r)*16;
+    const cy = 45 + Math.sin(r)*16;
+    petalPaths.push(`
+      <ellipse cx="${cx}" cy="${cy}" rx="14" ry="20" fill="${pal.petal}"
+        transform="rotate(${a+90},${cx},${cy})" opacity="0.92"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="8" ry="14" fill="${pal.petal2}"
+        transform="rotate(${a+90},${cx},${cy})" opacity="0.4"/>
+    `);
+  }
+  // 花びら先端の切れ込み
+  const notches = [];
+  for (let i=0;i<5;i++){
+    const a=(i/5)*360-90;
+    const r=a*Math.PI/180;
+    const nx=45+Math.cos(r)*32;
+    const ny=45+Math.sin(r)*32;
+    notches.push(`<circle cx="${nx}" cy="${ny}" r="3.5" fill="rgba(46,116,50,0.25)"/>`);
+  }
+  return `<svg width="${size}" height="${size*1.3}" viewBox="0 0 90 117">
+    <path d="M45 117 Q44 95 45 72" stroke="${pal.stem}" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M44 105 Q30 88 28 72 Q40 84 45 74" fill="${pal.stem}" opacity="0.75"/>
+    ${petalPaths.join('')}
+    ${notches.join('')}
+    <!-- 中心 -->
+    <circle cx="45" cy="45" r="9" fill="${pal.center}" opacity="0.95"/>
+    <circle cx="45" cy="45" r="5" fill="${pal.petal2}" opacity="0.8"/>
+    <!-- おしべ -->
+    ${[0,60,120,180,240,300].map(a=>{
+      const r2=a*Math.PI/180;
+      return `<line x1="45" y1="45" x2="${45+Math.cos(r2)*10}" y2="${45+Math.sin(r2)*10}"
+        stroke="${pal.petal2}" stroke-width="1.2" stroke-linecap="round"/>
+        <circle cx="${45+Math.cos(r2)*11}" cy="${45+Math.sin(r2)*11}" r="2" fill="${pal.center}"/>`;
+    }).join('')}
+  </svg>`;
+}
+
+// デイジー SVG 生成
+function makeDaisySVG(pal, size=90) {
+  const n = 12;
+  let petals = '';
+  for (let i=0;i<n;i++){
+    const a=(i/n)*360-90;
+    const r=a*Math.PI/180;
+    const cx=45+Math.cos(r)*20;
+    const cy=45+Math.sin(r)*20;
+    petals += `<ellipse cx="${cx}" cy="${cy}" rx="7" ry="18" fill="${pal.petal}"
+      transform="rotate(${a+90},${cx},${cy})" opacity="0.93"/>`;
+  }
+  return `<svg width="${size}" height="${size*1.35}" viewBox="0 0 90 122">
+    <path d="M45 122 Q44 96 45 72" stroke="${pal.stem}" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M44 108 Q28 90 27 72 Q39 84 45 73" fill="${pal.stem}" opacity="0.8"/>
+    <path d="M46 104 Q62 86 63 68 Q52 80 45 72" fill="${pal.stem}" opacity="0.7"/>
+    ${petals}
+    <circle cx="45" cy="45" r="16" fill="${pal.center}" opacity="0.97"/>
+    <circle cx="45" cy="45" r="10" fill="${pal.petal2}" opacity="0.5"/>
+    <circle cx="45" cy="45" r="5" fill="${pal.center}" opacity="0.9"/>
+    <!-- 花粉の点 -->
+    ${Array.from({length:12},(_,i)=>{
+      const a=(i/12)*360*Math.PI/180;
+      return `<circle cx="${45+Math.cos(a)*9}" cy="${45+Math.sin(a)*9}" r="1.5" fill="rgba(255,255,255,0.6)"/>`;
+    }).join('')}
+  </svg>`;
+}
+
+// バラ SVG 生成
+function makeRoseSVG(pal, size=90) {
+  return `<svg width="${size}" height="${size*1.4}" viewBox="0 0 90 126">
+    <path d="M45 126 Q43 102 44 78" stroke="${pal.stem}" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M44 110 Q26 92 24 74 Q37 86 45 80" fill="${pal.stem}" opacity="0.82"/>
+    <path d="M46 106 Q64 88 66 70 Q54 82 45 78" fill="${pal.stem}" opacity="0.72"/>
+    <!-- 外花びら -->
+    <ellipse cx="45" cy="58" rx="26" ry="22" fill="${pal.petal}" opacity="0.88"/>
+    <ellipse cx="24" cy="50" rx="16" ry="20" fill="${pal.petal}" transform="rotate(-30,24,50)" opacity="0.82"/>
+    <ellipse cx="66" cy="50" rx="16" ry="20" fill="${pal.petal}" transform="rotate(30,66,50)" opacity="0.82"/>
+    <ellipse cx="35" cy="34" rx="14" ry="18" fill="${pal.petal}" transform="rotate(-15,35,34)" opacity="0.78"/>
+    <ellipse cx="55" cy="34" rx="14" ry="18" fill="${pal.petal}" transform="rotate(15,55,34)" opacity="0.78"/>
+    <!-- 中花びら -->
+    <ellipse cx="45" cy="50" rx="20" ry="18" fill="${pal.petal2}" opacity="0.88"/>
+    <ellipse cx="33" cy="44" rx="13" ry="16" fill="${pal.petal2}" transform="rotate(-20,33,44)" opacity="0.82"/>
+    <ellipse cx="57" cy="44" rx="13" ry="16" fill="${pal.petal2}" transform="rotate(20,57,44)" opacity="0.82"/>
+    <!-- 内花びら -->
+    <ellipse cx="45" cy="44" rx="13" ry="14" fill="${pal.center}" opacity="0.75"/>
+    <ellipse cx="45" cy="40" rx="8" ry="10" fill="${pal.petal2}" opacity="0.7"/>
+    <!-- 中心渦 -->
+    <path d="M45 36 Q50 39 48 44 Q45 48 42 44 Q40 39 45 36" fill="${pal.center}" opacity="0.9"/>
+  </svg>`;
+}
+
+// スミレ SVG 生成
+function makeVioletSVG(pal, size=90) {
+  return `<svg width="${size}" height="${size*1.3}" viewBox="0 0 90 117">
+    <path d="M45 117 Q44 98 45 76" stroke="${pal.stem}" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M44 106 Q30 92 28 76 Q40 86 45 78" fill="${pal.stem}" opacity="0.78"/>
+    <!-- 下花びら(大) -->
+    <ellipse cx="45" cy="62" rx="18" ry="22" fill="${pal.petal}" opacity="0.92"/>
+    <!-- 上花びら -->
+    <ellipse cx="28" cy="44" rx="16" ry="18" fill="${pal.petal2}" transform="rotate(-30,28,44)" opacity="0.9"/>
+    <ellipse cx="62" cy="44" rx="16" ry="18" fill="${pal.petal2}" transform="rotate(30,62,44)" opacity="0.9"/>
+    <!-- 横花びら -->
+    <ellipse cx="20" cy="58" rx="14" ry="12" fill="${pal.petal}" transform="rotate(-60,20,58)" opacity="0.85"/>
+    <ellipse cx="70" cy="58" rx="14" ry="12" fill="${pal.petal}" transform="rotate(60,70,58)" opacity="0.85"/>
+    <!-- 中心 -->
+    <ellipse cx="45" cy="52" rx="10" ry="10" fill="${pal.center}" opacity="0.95"/>
+    <!-- 蜜標の線 -->
+    <line x1="45" y1="60" x2="45" y2="46" stroke="${pal.petal}" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <line x1="40" y1="58" x2="44" y2="46" stroke="${pal.petal}" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+    <line x1="50" y1="58" x2="46" y2="46" stroke="${pal.petal}" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+  </svg>`;
+}
+
+function makeFlowerSVG(type, size) {
+  const palettes = FLOWER_PALETTES[type];
+  const pal = palettes[Math.floor(Math.random() * palettes.length)];
+  switch(type) {
+    case 'tulip':     return { svg: makeTulipSVG(pal, size), pal };
+    case 'dandelion': return { svg: makeDandelionSVG(pal, size), pal };
+    case 'sakura':    return { svg: makeSakuraSVG(pal, size), pal };
+    case 'daisy':     return { svg: makeDaisySVG(pal, size), pal };
+    case 'rose':      return { svg: makeRoseSVG(pal, size), pal };
+    case 'violet':    return { svg: makeVioletSVG(pal, size), pal };
+  }
+}
+
+// ============================================================
+// スパークルパーティクル
+// ============================================================
+function createSparkles(x, y, color) {
+  const count = 8 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 20 + Math.random() * 50;
+    el.style.cssText = `
+      position: fixed; left: ${x}px; top: ${y}px;
+      width: ${3 + Math.random()*4}px; height: ${3 + Math.random()*4}px;
+      background: ${color};
+      border-radius: 50%;
+      pointer-events: none; z-index: 9;
+      --sx: ${Math.cos(angle)*dist}px;
+      --sy: ${Math.sin(angle)*dist - 20}px;
+      animation: sparkle ${0.4 + Math.random()*0.5}s ease-out forwards;
+      animation-delay: ${Math.random()*0.1}s;
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1100);
+  }
+}
+
+// 花粉ぽわぽわ
+function createPollen(x, y, color) {
+  const count = 5;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 10 + Math.random() * 30;
+    el.style.cssText = `
+      position: fixed; left: ${x + (Math.random()-0.5)*20}px; top: ${y}px;
+      width: ${4+Math.random()*5}px; height: ${4+Math.random()*5}px;
+      background: radial-gradient(circle, rgba(255,240,100,0.9), rgba(255,200,50,0.4));
+      border-radius: 50%;
+      pointer-events: none; z-index: 8;
+      --px: ${Math.cos(angle)*dist}px;
+      --py: ${-20 - Math.random()*50}px;
+      animation: pollenFloat ${0.8 + Math.random()*0.8}s ease-out forwards;
+      animation-delay: ${Math.random()*0.2}s;
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1500);
+  }
+}
+
+// ============================================================
+// 花を生成
+// ============================================================
+let flowerCount = 0;
+
+function createFlower(x, y) {
+  const type = FLOWER_TYPES[Math.floor(Math.random() * FLOWER_TYPES.length)];
+  const size = 60 + Math.random() * 45;
+  const { svg, pal } = makeFlowerSVG(type, size);
+
+  const el = document.createElement('div');
+  el.className = 'flower-el';
+
+  // 花の高さ分上にオフセット（茎の根元がタップ位置）
+  const heightRatio = type === 'tulip' || type === 'rose' ? 1.4 :
+                      type === 'dandelion' || type === 'daisy' ? 1.35 : 1.3;
+  const flowerH = size * heightRatio;
+
+  el.style.cssText = `
+    left: ${x - size/2}px;
+    top: ${y - flowerH}px;
+    width: ${size}px;
+    animation: flowerDrop ${3.5 + Math.random()}s ease-out forwards;
+    animation-delay: 0s;
+  `;
+  el.innerHTML = svg;
+
+  document.body.appendChild(el);
+
+  // キラキラ & 花粉
+  setTimeout(() => {
+    createSparkles(x, y - flowerH * 0.4, pal.petal);
+    createPollen(x, y - flowerH * 0.35, pal.center);
+  }, 80);
+
+  playFlowerSound(flowerCount++);
+
+  setTimeout(() => el.remove(), 5000);
+}
+
+// ============================================================
+// 蝶々を生成
+// ============================================================
+const BUTTERFLY_COLORS = [
+  ['#FF8FAB','#FF4081','#E040FB'],
+  ['#FFD54F','#FF8F00','#FF6D00'],
+  ['#80DEEA','#00BCD4','#1976D2'],
+  ['#A5D6A7','#43A047','#FFF176'],
+  ['#CE93D8','#8E24AA','#F8BBD0'],
+  ['#FFCC80','#EF6C00','#E91E63'],
+];
+
+function createButterfly(x, y) {
+  const cols = BUTTERFLY_COLORS[Math.floor(Math.random() * BUTTERFLY_COLORS.length)];
+  const size = 38 + Math.random() * 28;
+  const el = document.createElement('div');
+  el.className = 'butterfly-el';
+
+  const mx1 = (Math.random()-0.5)*120;
+  const my1 = -(60 + Math.random()*80);
+  const mx2 = mx1 + (Math.random()-0.5)*140;
+  const my2 = my1 - (80 + Math.random()*100);
+  const mx3 = mx2 + (Math.random()-0.5)*120;
+  const my3 = my2 - (100 + Math.random()*120);
+  const mx4 = mx3 + (Math.random()-0.5)*100;
+  const my4 = my3 - (80 + Math.random()*100);
+  const rot = (Math.random()-0.5) * 30;
+
+  el.style.cssText = `
+    left: ${x}px; top: ${y}px;
+    width: ${size*2.2}px; height: ${size*1.4}px;
+    --rot: ${rot}deg;
+    --mx1: ${mx1}px; --my1: ${my1}px;
+    --mx2: ${mx2}px; --my2: ${my2}px;
+    --mx3: ${mx3}px; --my3: ${my3}px;
+    --mx4: ${mx4}px; --my4: ${my4}px;
+    animation: butterflyFly ${5 + Math.random()*3}s ease-in-out forwards;
+    transform-origin: center;
+  `;
+
+  // SVG 蝶
+  const ws = size;
+  const wingsVib = Math.random() > 0.5 ? 0.22 : 0.18;
+  el.innerHTML = `
+    <svg width="${ws*2.2}" height="${ws*1.4}" viewBox="0 0 110 70" style="overflow:visible">
+      <!-- 左前翅 -->
+      <g style="transform-origin:55px 38px; animation: wingFlapL ${wingsVib}s ease-in-out infinite alternate;">
+        <ellipse cx="30" cy="28" rx="28" ry="22"
+          fill="${cols[0]}" opacity="0.92" transform="rotate(-15,30,28)"/>
+        <ellipse cx="26" cy="26" rx="16" ry="12"
+          fill="${cols[1]}" opacity="0.35" transform="rotate(-15,26,26)"/>
+        <!-- 翅脈 -->
+        <path d="M54 37 Q35 20 14 18" stroke="${cols[2]}" stroke-width="0.8" fill="none" opacity="0.5"/>
+        <path d="M54 37 Q38 28 22 38" stroke="${cols[2]}" stroke-width="0.6" fill="none" opacity="0.4"/>
+        <!-- 目玉模様 -->
+        <circle cx="22" cy="22" r="5" fill="${cols[2]}" opacity="0.6"/>
+        <circle cx="22" cy="22" r="3" fill="white" opacity="0.5"/>
+        <circle cx="22" cy="22" r="1.5" fill="${cols[2]}" opacity="0.9"/>
+      </g>
+      <!-- 右前翅 -->
+      <g style="transform-origin:55px 38px; animation: wingFlapR ${wingsVib}s ease-in-out infinite alternate;">
+        <ellipse cx="80" cy="28" rx="28" ry="22"
+          fill="${cols[0]}" opacity="0.92" transform="rotate(15,80,28)"/>
+        <ellipse cx="84" cy="26" rx="16" ry="12"
+          fill="${cols[1]}" opacity="0.35" transform="rotate(15,84,26)"/>
+        <path d="M56 37 Q75 20 96 18" stroke="${cols[2]}" stroke-width="0.8" fill="none" opacity="0.5"/>
+        <path d="M56 37 Q72 28 88 38" stroke="${cols[2]}" stroke-width="0.6" fill="none" opacity="0.4"/>
+        <circle cx="88" cy="22" r="5" fill="${cols[2]}" opacity="0.6"/>
+        <circle cx="88" cy="22" r="3" fill="white" opacity="0.5"/>
+        <circle cx="88" cy="22" r="1.5" fill="${cols[2]}" opacity="0.9"/>
+      </g>
+      <!-- 左後翅 -->
+      <g style="transform-origin:55px 38px; animation: wingFlapL ${wingsVib}s ease-in-out infinite alternate;">
+        <ellipse cx="33" cy="52" rx="22" ry="16"
+          fill="${cols[1]}" opacity="0.85" transform="rotate(-25,33,52)"/>
+      </g>
+      <!-- 右後翅 -->
+      <g style="transform-origin:55px 38px; animation: wingFlapR ${wingsVib}s ease-in-out infinite alternate;">
+        <ellipse cx="77" cy="52" rx="22" ry="16"
+          fill="${cols[1]}" opacity="0.85" transform="rotate(25,77,52)"/>
+      </g>
+      <!-- 胴体 -->
+      <ellipse cx="55" cy="38" rx="3.5" ry="16" fill="#3E2723" opacity="0.9"/>
+      <!-- 触角 -->
+      <path d="M53 24 Q46 12 42 8" stroke="#3E2723" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+      <circle cx="42" cy="8" r="2.2" fill="#3E2723"/>
+      <path d="M57 24 Q64 12 68 8" stroke="#3E2723" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+      <circle cx="68" cy="8" r="2.2" fill="#3E2723"/>
+    </svg>
+  `;
+
+  document.body.appendChild(el);
+  playButterflySound();
+  setTimeout(() => el.remove(), 8500);
+}
+
+// ============================================================
+// インタラクション
+// ============================================================
+let guideHidden = false;
+let butterflyCounter = 0;
+
+function hideGuide() {
+  if (!guideHidden) {
+    document.getElementById('guide').style.opacity = '0';
+    setTimeout(() => {
+      const g = document.getElementById('guide');
+      if (g) g.remove();
+    }, 900);
+    guideHidden = true;
+  }
+}
+
+function handleInteract(e) {
+  e.preventDefault();
+  hideGuide();
+
+  const points = e.touches ? e.touches : [e];
+  for (let i = 0; i < points.length; i++) {
+    const px = points[i].clientX ?? points[i].pageX;
+    const py = points[i].clientY ?? points[i].pageY;
+
+    createFlower(px, py);
+
+    butterflyCounter++;
+    // 3〜5回に1回 蝶々出現
+    if (butterflyCounter % (3 + Math.floor(Math.random()*3)) === 0) {
+      setTimeout(() => createButterfly(px, py), 200 + Math.random()*300);
+    }
+  }
+}
+
+window.addEventListener('pointerdown', handleInteract, { passive: false });
+
+// ドラッグ中も花を咲かせる (間引き)
+let lastDragTime = 0;
+window.addEventListener('pointermove', (e) => {
+  if (e.buttons === 0) return;
+  const now = Date.now();
+  if (now - lastDragTime < 220) return;
+  lastDragTime = now;
+  hideGuide();
+  createFlower(e.clientX, e.clientY);
+}, { passive: true });
+</script>
+</body>
+</html>
