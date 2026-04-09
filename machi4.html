@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>まちぼうけピアノ - 電子黒板調整版</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #fff9c4;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            /* 画面全体の高さを100%に固定 */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #stage {
+            /* 画面上部70%をステージに割り当て */
+            flex: 7;
+            width: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        #controls {
+            position: absolute;
+            top: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 15px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 15px;
+            border: 3px solid #f57f17;
+            background-color: #fff176;
+            transition: all 0.2s;
+        }
+        button.active {
+            background-color: #f57f17;
+            color: white;
+            transform: scale(1.05);
+        }
+        #piano-container {
+            /* 下部30%を鍵盤エリアに固定し、さらに下に余裕を持たせる */
+            flex: 3;
+            width: 100%;
+            background: #424242;
+            padding: 8px 8px 30px 8px; /* 下側のパディングを大きくして、タスクバー等との重なりを防止 */
+            box-sizing: border-box;
+            display: flex;
+        }
+        .key {
+            flex: 1;
+            border: 1px solid #ccc;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            position: relative;
+            cursor: pointer;
+            box-shadow: inset 0 -5px 0 #eee;
+            z-index: 1;
+            height: 100%;
+        }
+        .key.black {
+            background: #212121;
+            height: 60%;
+            margin-left: -2.5%;
+            margin-right: -2.5%;
+            z-index: 2;
+            flex: 0.6;
+            border-radius: 0 0 5px 5px;
+            box-shadow: inset 0 -5px 0 #000;
+        }
+        .key.auto-active {
+            background: #ffeb3b !important;
+            transform: translateY(2px);
+            box-shadow: inset 0 -2px 0 #fbc02d;
+        }
+        .key.white.piano-active {
+            background: #e0f7fa !important;
+            transform: translateY(2px);
+        }
+        .key.black.piano-active {
+            background: #006064 !important;
+            transform: translateY(2px);
+        }
+        .particle {
+            position: absolute;
+            font-size: 5rem;
+            pointer-events: none;
+            animation: bounceFly 1.5s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
+        }
+        @keyframes bounceFly {
+            0% { transform: translate(0, 0) scale(0) rotate(0deg); opacity: 0; }
+            20% { opacity: 1; transform: translate(0, -50px) scale(1.2) rotate(10deg); }
+            100% { transform: translate(var(--dx), var(--dy)) scale(1.8) rotate(var(--rot)); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="stage">
+    <div id="controls">
+        <button id="btn-piano" class="active">🎹 ピアノ</button>
+        <button id="btn-play">🐇 演奏 (まちぼうけ)</button>
+    </div>
+</div>
+
+<div id="piano-container"></div>
+
+<script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playTone(freq) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.8);
+    }
+
+    const melody = [
+        64, 67, 67, 67, 64, 67, 67, 67, 69, 67, 67, 69, 67, 67,
+        64, 67, 69, 65, 67, 64, 67, 67, 64, 67, 67, 67,
+        69, 69, 71, 72, 74, 67, 72, 67, 64, 62, 69, 69, 69,
+        72, 67, 64, 62, 64
+    ];
+    let melodyIndex = 0;
+    let isAutoMode = false;
+
+    const piano = document.getElementById('piano-container');
+    const notes = [
+        {f: 261.63, b: false}, {f: 277.18, b: true}, {f: 293.66, b: false}, {f: 311.13, b: true}, {f: 329.63, b: false}, 
+        {f: 349.23, b: false}, {f: 369.99, b: true}, {f: 392.00, b: false}, {f: 415.30, b: true}, {f: 440.00, b: false}, 
+        {f: 466.16, b: true}, {f: 493.88, b: false}, {f: 523.25, b: false}, {f: 554.37, b: true}, {f: 587.33, b: false}, 
+        {f: 622.25, b: true}, {f: 659.25, b: false}, {f: 698.46, b: false}, {f: 739.99, b: true}, {f: 783.99, b: false}, 
+        {f: 830.61, b: true}, {f: 880.00, b: false}, {f: 932.33, b: true}, {f: 987.77, b: false}, {f: 1046.50, b: false}
+    ];
+
+    notes.forEach(note => {
+        const key = document.createElement('div');
+        key.className = `key ${note.b ? 'black' : 'white'}`;
+        const startAction = (e) => {
+            e.preventDefault();
+            handleInput(note, key);
+        };
+        key.addEventListener('mousedown', startAction);
+        key.addEventListener('touchstart', startAction);
+        piano.appendChild(key);
+    });
+
+    function handleInput(note, keyEl) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (isAutoMode) {
+            keyEl.classList.add('auto-active');
+            setTimeout(() => keyEl.classList.remove('auto-active'), 150);
+            const midi = melody[melodyIndex];
+            const freq = 440 * Math.pow(2, (midi - 69) / 12);
+            playTone(freq);
+            createEffect();
+            melodyIndex++;
+            if (melodyIndex >= melody.length) melodyIndex = 0;
+        } else {
+            keyEl.classList.add('piano-active');
+            setTimeout(() => keyEl.classList.remove('piano-active'), 150);
+            playTone(note.f);
+        }
+    }
+
+    function createEffect() {
+        const stage = document.getElementById('stage');
+        const items = ['🐇', '🎵', '🎶', '💨', '✨'];
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.innerText = items[Math.floor(Math.random() * items.length)];
+        const dx = (Math.random() - 0.5) * 800 + 'px';
+        const dy = -(Math.random() * 400 + 200) + 'px';
+        const rot = (Math.random() - 0.5) * 720 + 'deg';
+        p.style.setProperty('--dx', dx);
+        p.style.setProperty('--dy', dy);
+        p.style.setProperty('--rot', rot);
+        p.style.left = '50%';
+        p.style.bottom = '15%';
+        stage.appendChild(p);
+        setTimeout(() => p.remove(), 1500);
+    }
+
+    const btnPiano = document.getElementById('btn-piano');
+    const btnPlay = document.getElementById('btn-play');
+    btnPiano.onclick = () => { isAutoMode = false; btnPiano.classList.add('active'); btnPlay.classList.remove('active'); };
+    btnPlay.onclick = () => { isAutoMode = true; melodyIndex = 0; btnPlay.classList.add('active'); btnPiano.classList.remove('active'); };
+</script>
+</body>
+</html>
