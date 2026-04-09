@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>まちぼうけピアノ - 電子黒板調整版</title>
+    <title>まちぼうけピアノ - 電子黒板・完全表示版</title>
     <style>
         body {
             margin: 0;
@@ -13,21 +13,18 @@
             font-family: 'Helvetica Neue', Arial, sans-serif;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
-            /* 画面全体の高さを100%に固定 */
             height: 100vh;
             display: flex;
             flex-direction: column;
         }
         #stage {
-            /* 画面上部70%をステージに割り当て */
-            flex: 7;
+            flex: 1; /* 残りの空間をすべて使う */
             width: 100%;
             position: relative;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
         }
         #controls {
             position: absolute;
@@ -44,55 +41,69 @@
             border-radius: 15px;
             border: 3px solid #f57f17;
             background-color: #fff176;
-            transition: all 0.2s;
+            box-shadow: 0 4px 0 #f57f17;
         }
         button.active {
             background-color: #f57f17;
             color: white;
-            transform: scale(1.05);
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #d84315;
         }
-        #piano-container {
-            /* 下部30%を鍵盤エリアに固定し、さらに下に余裕を持たせる */
-            flex: 3;
+        #piano-outer-container {
+            /* 鍵盤エリア全体の高さ。ここを調整して上に持ち上げます */
+            height: 40vh; 
             width: 100%;
             background: #424242;
-            padding: 8px 8px 30px 8px; /* 下側のパディングを大きくして、タスクバー等との重なりを防止 */
-            box-sizing: border-box;
             display: flex;
+            flex-direction: column;
+            padding-top: 10px;
+        }
+        #piano-main {
+            flex: 1;
+            display: flex;
+            padding: 0 10px;
+            box-sizing: border-box;
+            position: relative;
+        }
+        /* 画面最下部の安全地帯：ここを広くすることで鍵盤が隠れなくなります */
+        #safe-bottom-margin {
+            height: 60px; 
+            background: #333;
+            width: 100%;
         }
         .key {
             flex: 1;
             border: 1px solid #ccc;
             background: white;
-            border-radius: 0 0 8px 8px;
+            border-radius: 0 0 12px 12px;
             position: relative;
             cursor: pointer;
-            box-shadow: inset 0 -5px 0 #eee;
+            box-shadow: inset 0 -8px 0 #eee, 0 4px 0 #000;
             z-index: 1;
-            height: 100%;
+            height: 90%; /* コンテナ内で少し浮かせる */
         }
         .key.black {
             background: #212121;
-            height: 60%;
+            height: 55%;
             margin-left: -2.5%;
             margin-right: -2.5%;
             z-index: 2;
             flex: 0.6;
-            border-radius: 0 0 5px 5px;
-            box-shadow: inset 0 -5px 0 #000;
+            border-radius: 0 0 8px 8px;
+            box-shadow: inset 0 -5px 0 #000, 0 4px 0 #000;
         }
         .key.auto-active {
             background: #ffeb3b !important;
-            transform: translateY(2px);
-            box-shadow: inset 0 -2px 0 #fbc02d;
+            transform: translateY(4px);
+            box-shadow: inset 0 -2px 0 #fbc02d, 0 2px 0 #000;
         }
         .key.white.piano-active {
             background: #e0f7fa !important;
-            transform: translateY(2px);
+            transform: translateY(4px);
         }
         .key.black.piano-active {
             background: #006064 !important;
-            transform: translateY(2px);
+            transform: translateY(4px);
         }
         .particle {
             position: absolute;
@@ -103,7 +114,7 @@
         }
         @keyframes bounceFly {
             0% { transform: translate(0, 0) scale(0) rotate(0deg); opacity: 0; }
-            20% { opacity: 1; transform: translate(0, -50px) scale(1.2) rotate(10deg); }
+            20% { opacity: 1; transform: translate(0, -60px) scale(1.2); }
             100% { transform: translate(var(--dx), var(--dy)) scale(1.8) rotate(var(--rot)); opacity: 0; }
         }
     </style>
@@ -117,7 +128,10 @@
     </div>
 </div>
 
-<div id="piano-container"></div>
+<div id="piano-outer-container">
+    <div id="piano-main"></div>
+    <div id="safe-bottom-margin"></div>
+</div>
 
 <script>
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -144,7 +158,7 @@
     let melodyIndex = 0;
     let isAutoMode = false;
 
-    const piano = document.getElementById('piano-container');
+    const pianoMain = document.getElementById('piano-main');
     const notes = [
         {f: 261.63, b: false}, {f: 277.18, b: true}, {f: 293.66, b: false}, {f: 311.13, b: true}, {f: 329.63, b: false}, 
         {f: 349.23, b: false}, {f: 369.99, b: true}, {f: 392.00, b: false}, {f: 415.30, b: true}, {f: 440.00, b: false}, 
@@ -162,7 +176,7 @@
         };
         key.addEventListener('mousedown', startAction);
         key.addEventListener('touchstart', startAction);
-        piano.appendChild(key);
+        pianoMain.appendChild(key);
     });
 
     function handleInput(note, keyEl) {
@@ -196,7 +210,7 @@
         p.style.setProperty('--dy', dy);
         p.style.setProperty('--rot', rot);
         p.style.left = '50%';
-        p.style.bottom = '15%';
+        p.style.bottom = '10%';
         stage.appendChild(p);
         setTimeout(() => p.remove(), 1500);
     }
